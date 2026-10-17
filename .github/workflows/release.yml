@@ -25,6 +25,7 @@ jobs:
       actions: write
     outputs:
       sha: ${{ steps.source.outputs.sha }}
+      resume: ${{ steps.version.outputs.resume }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -36,7 +37,15 @@ jobs:
         id: version
         env:
           VERSION: ${{ inputs.version }}
+          GH_TOKEN: ${{ github.token }}
         run: |
+          if git show-ref --verify --quiet "refs/tags/v$VERSION"; then
+            test "$(gh release view "v$VERSION" --json isDraft --jq .isDraft)" = true
+            git checkout --detach "refs/tags/v$VERSION"
+            python script/ci/prepare_release.py "$VERSION" --resume
+            echo 'resume=true' >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
           python script/ci/prepare_release.py "$VERSION"
           if git diff --quiet; then exit 0; fi
           branch="codex/release-v$VERSION"
@@ -74,7 +83,7 @@ jobs:
           - [x] 没有引入恶意代码 / No malicious code
           - [x] 涉及的行为、配置或兼容影响已说明 / Relevant behavior, configuration, or compatibility impacts are documented
           EOF
-            gh pr create --head "$BRANCH" --base main --title "Release v$VERSION" --body-file "$RUNNER_TEMP/version-pr.md"
+            gh pr create --head "$BRANCH" --base main --title "chore(release): v$VERSION" --assignee FlanChanXwO --reviewer FlanChanXwO --body-file "$RUNNER_TEMP/version-pr.md"
             pr=$(gh pr list --head "$BRANCH" --base main --state open --json number --jq '.[0].number')
           fi
           # GITHUB_TOKEN 的 push 不触发普通 CI，显式调度 Verify。
@@ -91,9 +100,15 @@ jobs:
           gh pr merge "$pr" --squash --delete-branch --match-head-commit "$COMMIT"
       - name: Record committed release source
         id: source
+        env:
+          RESUME: ${{ steps.version.outputs.resume }}
         run: |
-          git fetch origin main
-          echo "sha=$(git rev-parse origin/main)" >> "$GITHUB_OUTPUT"
+          if test "$RESUME" = true; then
+            echo "sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
+          else
+            git fetch origin main
+            echo "sha=$(git rev-parse origin/main)" >> "$GITHUB_OUTPUT"
+          fi
 
   build:
     needs: prepare
@@ -123,7 +138,19 @@ jobs:
           metadata = json.loads(Path('data/project.json').read_text(encoding='utf-8'))
           assert metadata['version'] == os.environ['VERSION'], 'Merged version differs from release request'
           PY
+      - name: Restore original draft pack
+        if: needs.prepare.outputs.resume == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VERSION: ${{ inputs.version }}
+        run: |
+          gh release download "v$VERSION" --pattern tww3_mod_capacity_cost_control.pack --pattern SHA256SUMS --dir build
+          expected=$(gh release view "v$VERSION" --json body --jq .body | sed -n 's/^Pack SHA256: //p')
+          [[ "$expected" =~ ^[0-9a-f]{64}$ ]]
+          echo "$expected  build/tww3_mod_capacity_cost_control.pack" | sha256sum --check
+          cd build && sha256sum --check SHA256SUMS
       - name: Install validation tools
+        if: needs.prepare.outputs.resume != 'true'
         run: |
           python -m pip install -r requirements-dev.txt
           lua_dir="$(cygpath -u "$RUNNER_TEMP")/lua"
@@ -134,6 +161,7 @@ jobs:
           "$lua_dir/lua54.exe" -v
           echo "LUA=$(cygpath -w "$lua_dir/lua54.exe")" >> "$GITHUB_ENV"
       - name: Install RPFM 5.1.0
+        if: needs.prepare.outputs.resume != 'true'
         shell: pwsh
         env:
           GH_TOKEN: ${{ github.token }}
@@ -148,6 +176,7 @@ jobs:
           $server = $servers[0]
           "RPFM_SERVER=$($server.FullName)" >> $env:GITHUB_ENV
       - name: Validate and build pack
+        if: needs.prepare.outputs.resume != 'true'
         run: |
           "$RPFM_SERVER" > "$RUNNER_TEMP/rpfm-server.log" 2>&1 &
           server_pid=$!
@@ -277,16 +306,17 @@ jobs:
       - name: Install official SteamCMD
         run: |
           sudo apt-get install -y lib32gcc-s1
-          mkdir -p "$RUNNER_TEMP/steamcmd"
+          # Linux SteamCMD 使用 ~/Steam/config，安装与登录缓存共用默认目录。
+          mkdir -p "$HOME/Steam"
           curl --fail --location https://steamcdn-a.akamaihd.net/client/installer/steamcmd_linux.tar.gz -o "$RUNNER_TEMP/steamcmd.tar.gz"
-          tar -xzf "$RUNNER_TEMP/steamcmd.tar.gz" -C "$RUNNER_TEMP/steamcmd"
-          "$RUNNER_TEMP/steamcmd/steamcmd.sh" +quit
+          tar -xzf "$RUNNER_TEMP/steamcmd.tar.gz" -C "$HOME/Steam"
+          "$HOME/Steam/steamcmd.sh" +quit
       - name: Upload approved pack to Steam Workshop
         env:
           STEAM_USERNAME: ${{ secrets.STEAM_USERNAME }}
           STEAM_CONFIG_VDF: ${{ secrets.STEAM_CONFIG_VDF }}
           SHA256: ${{ needs.build.outputs.sha256 }}
-        run: python script/ci/upload_workshop.py --steamcmd "$RUNNER_TEMP/steamcmd/steamcmd.sh" --pack build/tww3_mod_capacity_cost_control.pack --sha256 "$SHA256"
+        run: python script/ci/upload_workshop.py --steamcmd "$HOME/Steam/steamcmd.sh" --pack build/tww3_mod_capacity_cost_control.pack --sha256 "$SHA256"
       - name: Publish GitHub Release
         env:
           GH_TOKEN: ${{ github.token }}

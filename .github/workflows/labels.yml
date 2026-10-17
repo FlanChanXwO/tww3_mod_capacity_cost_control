@@ -8,7 +8,7 @@ on:
     types: [opened, reopened]
   pull_request_target:
     branches: [main]
-    types: [opened, reopened, synchronize]
+    types: [opened, reopened, synchronize, ready_for_review]
 
 permissions: {}
 
@@ -67,3 +67,8 @@ jobs:
           repo-token: ${{ github.token }}
           configuration-path: .github/labeler.yml
           sync-labels: true
+      - name: 指派与请求审查 / Assign and request review
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: python script/ci/pr_triage.py --event-file "$GITHUB_EVENT_PATH"

@@ -9,10 +9,41 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 import ensure_labels
 import issue_triage
+import pr_triage
 import record_release
 
 
 class CiToolsTests(unittest.TestCase):
+    def test_pr_assignment_review_and_repeated_runs(self) -> None:
+        cases = (
+            ("maintainer", False, [], [], [], ["--add-assignee", "maintainer"]),
+            ("contributor", False, [], [], [], ["--add-assignee", "maintainer", "--add-reviewer", "maintainer"]),
+            ("contributor", True, [], [], [], ["--add-assignee", "maintainer"]),
+            ("contributor", False, ["someone"], ["reviewer"], [], []),
+            ("contributor", False, ["someone"], [], [{"author": {"login": "maintainer"}}], []),
+        )
+        for author, draft, assignees, requests, reviews, expected in cases:
+            with self.subTest(author=author, draft=draft, requests=requests, reviews=reviews):
+                pr = {"author": {"login": author}, "isDraft": draft, "assignees": list(assignees),
+                      "reviewRequests": list(requests), "reviews": reviews}
+
+                def github(command, **kwargs):
+                    if command[2] == "view":
+                        return subprocess.CompletedProcess(command, 0, stdout=json.dumps(pr))
+                    if "--add-assignee" in command:
+                        pr["assignees"].append("maintainer")
+                    if "--add-reviewer" in command:
+                        pr["reviewRequests"].append("maintainer")
+                    return subprocess.CompletedProcess(command, 0)
+
+                with patch.object(pr_triage.subprocess, "run", side_effect=github) as run:
+                    pr_triage.triage_pr(4, "maintainer")
+                    edits = [call.args[0] for call in run.call_args_list if call.args[0][2] == "edit"]
+                    self.assertEqual(edits, [["gh", "pr", "edit", "4", *expected]] if expected else [])
+                    run.reset_mock()
+                    pr_triage.triage_pr(4, "maintainer")
+                    self.assertEqual(run.call_count, 1)
+
     def test_label_initialization_uses_repository_config(self) -> None:
         definitions = json.loads((ensure_labels.ROOT / ".github/labels.json").read_text(encoding="utf-8"))
         with patch.object(ensure_labels.subprocess, "run") as run:
