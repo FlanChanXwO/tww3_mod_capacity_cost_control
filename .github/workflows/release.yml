@@ -109,6 +109,25 @@ jobs:
             git fetch origin main
             echo "sha=$(git rev-parse origin/main)" >> "$GITHUB_OUTPUT"
           fi
+      - name: Restore original draft pack
+        if: steps.version.outputs.resume == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VERSION: ${{ inputs.version }}
+        run: |
+          gh release download "v$VERSION" --pattern tww3_mod_capacity_cost_control.pack --pattern SHA256SUMS --dir build
+          expected=$(gh release view "v$VERSION" --json body --jq .body | sed -n 's/^Pack SHA256: //p')
+          [[ "$expected" =~ ^[0-9a-f]{64}$ ]]
+          echo "$expected  build/tww3_mod_capacity_cost_control.pack" | sha256sum --check
+          cd build && sha256sum --check SHA256SUMS
+      - uses: actions/upload-artifact@v4
+        if: steps.version.outputs.resume == 'true'
+        with:
+          name: release-pack
+          path: |
+            build/tww3_mod_capacity_cost_control.pack
+            build/SHA256SUMS
+          if-no-files-found: error
 
   build:
     needs: prepare
@@ -138,17 +157,11 @@ jobs:
           metadata = json.loads(Path('data/project.json').read_text(encoding='utf-8'))
           assert metadata['version'] == os.environ['VERSION'], 'Merged version differs from release request'
           PY
-      - name: Restore original draft pack
+      - uses: actions/download-artifact@v4
         if: needs.prepare.outputs.resume == 'true'
-        env:
-          GH_TOKEN: ${{ github.token }}
-          VERSION: ${{ inputs.version }}
-        run: |
-          gh release download "v$VERSION" --pattern tww3_mod_capacity_cost_control.pack --pattern SHA256SUMS --dir build
-          expected=$(gh release view "v$VERSION" --json body --jq .body | sed -n 's/^Pack SHA256: //p')
-          [[ "$expected" =~ ^[0-9a-f]{64}$ ]]
-          echo "$expected  build/tww3_mod_capacity_cost_control.pack" | sha256sum --check
-          cd build && sha256sum --check SHA256SUMS
+        with:
+          name: release-pack
+          path: build
       - name: Install validation tools
         if: needs.prepare.outputs.resume != 'true'
         run: |
@@ -226,6 +239,7 @@ jobs:
           echo '## Prepared release' >> "$GITHUB_STEP_SUMMARY"
           cat SHA256SUMS >> "$GITHUB_STEP_SUMMARY"
       - uses: actions/upload-artifact@v4
+        if: needs.prepare.outputs.resume != 'true'
         with:
           name: release-pack
           path: |
