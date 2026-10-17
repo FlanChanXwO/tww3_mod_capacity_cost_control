@@ -146,17 +146,25 @@ jobs:
           $servers = @(Get-ChildItem $rpfmDirectory -Recurse -Filter rpfm_server.exe)
           if ($servers.Count -ne 1) { throw 'Expected one RPFM server executable' }
           $server = $servers[0]
-          $process = Start-Process -FilePath $server.FullName -WorkingDirectory $server.DirectoryName -WindowStyle Hidden -PassThru -RedirectStandardOutput "$env:RUNNER_TEMP/rpfm-server.log" -RedirectStandardError "$env:RUNNER_TEMP/rpfm-server.err"
-          # server 启动是异步的；等待 HTTP 就绪后才建立 MCP session。
-          $ready = $false
-          for ($attempt = 0; $attempt -lt 30; $attempt++) {
-            if ($process.HasExited) { throw 'RPFM server exited before HTTP readiness' }
-            try { Invoke-RestMethod 'http://127.0.0.1:45127/version' -ErrorAction Stop; $ready = $true; break }
-            catch { Start-Sleep -Seconds 1 }
-          }
-          if (-not $ready) { throw 'RPFM server did not become ready within 30 seconds' }
-      - name: Install pinned WH3 schema
+          "RPFM_SERVER=$($server.FullName)" >> $env:GITHUB_ENV
+      - name: Validate and build pack
         run: |
+          "$RPFM_SERVER" > "$RUNNER_TEMP/rpfm-server.log" 2>&1 &
+          server_pid=$!
+          trap 'kill "$server_pid" 2>/dev/null || true' EXIT
+          # 服务与所有客户端共用一个步骤，避免 Windows 步骤退出时结束子进程。
+          python - <<'PY'
+          import time
+          import urllib.request
+          for attempt in range(30):
+              try:
+                  urllib.request.urlopen('http://127.0.0.1:45127/version').close()
+                  break
+              except OSError:
+                  time.sleep(1)
+          else:
+              raise RuntimeError('RPFM server did not become ready within 30 seconds')
+          PY
           python - <<'PY'
           import sys
           import urllib.request
@@ -169,10 +177,7 @@ jobs:
               'https://raw.githubusercontent.com/Frodo45127/rpfm-schemas/57a23a849fcaa805ccf3afe743bf46fd14a1a43c/schema_wh3.ron',
               directory / 'schema_wh3.ron')
           PY
-      - name: Validate and build pack
-        run: python script/ci/verify.py
-      - name: Verify packaged metadata
-        run: |
+          python script/ci/verify.py
           python - <<'PY'
           import sys
           from pathlib import Path
