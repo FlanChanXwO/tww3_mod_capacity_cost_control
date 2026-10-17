@@ -12,6 +12,8 @@
 ![Lua](https://img.shields.io/badge/runtime-Lua-2c2d72?style=flat-square&logo=lua)
 ![Python](https://img.shields.io/badge/build-Python_3.12-3776ab?style=flat-square&logo=python&logoColor=white)
 [![License](https://img.shields.io/badge/license-AFPL_v9-blue?style=flat-square)](LICENSE)
+[![Steam subscribers](https://img.shields.io/steam/subscriptions/3821170924.svg?style=flat-square&logo=steam&label=subscribers)](https://steamcommunity.com/sharedfiles/filedetails/?id=3821170924)
+[![Steam unique visitors](https://img.shields.io/steam/views/3821170924.svg?style=flat-square&logo=steam&label=unique%20visitors)](https://steamcommunity.com/sharedfiles/filedetails/?id=3821170924)
 
 [Install](#install) · [Settings](#settings) · [Documentation](docs/index.md) · [Changelog](CHANGELOG.md) · [License](#license)
 
