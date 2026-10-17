@@ -149,7 +149,7 @@ Get-FileHash (Join-Path $gameData 'tww3_mod_capacity_cost_control.pack') -Algori
 
 在 GitHub Actions 运行 [Release mod](../.github/workflows/release.yml)，分支选择 `main`，版本输入 `1.0.0` 这样的三段数字，不加 `v`。若版本变化，流程先建立 `codex/release-v<版本>` 分支和版本 PR，显式调度该提交的 Verify，通过后按现有分支保护合并；版本相同时直接复用 `main`。调度异步入队，最多等待两分钟获取验证 run ID。构建固定到已合并的提交，使用 Python 3.12、Lua 5.4 和 RPFM 5.1.0 完整验证、生成 pack，并保存 `release-pack` artifact 和 SHA256。构建使用 `windows-2025` runner 和官方 Windows RPFM 包；Lua 5.4.8 从官方源码用 runner 已有 GCC 编译。Linux 发行包在 Ubuntu 24.04 实测缺少 `libgit2.so.1.9`，因此采用与本机验证一致的 Windows 工具链。云端使用固定 schema 提交 `57a23a849fcaa805ccf3afe743bf46fd14a1a43c`；只导入仓库提供的表，无需游戏安装目录。RPFM server 启动最多等待 30 秒，失败日志随 job 输出。
 
-构建通过后停在 `release-approval` Environment。下载 artifact、核对版本和校验和并完成游戏验收，再由维护者在 Actions 的 **Review deployments** 批准。审批前不创建远端 tag、GitHub Release 或上传 Steam。审批后推送指向获批源码的 `v<版本>` tag，创建附带 pack 与 `SHA256SUMS` 的 GitHub 草稿，上传同一 pack 到既有工坊条目 `3821170924`，成功后公开 Release。工坊标题、描述、封面、可见性保持原状，变更说明写入版本。源码与构建输入随 tag 提供，分发遵循 [LICENSE](../LICENSE)。
+构建通过后停在 `release-approval` Environment。下载 artifact、核对版本和校验和并完成游戏验收，再由维护者在 Actions 的 **Review deployments** 批准。审批前不创建远端 tag、GitHub Release 或上传 Steam。审批后推送指向获批源码的 `v<版本>` tag，创建附带 pack 与 `SHA256SUMS` 的 GitHub 草稿，上传同一 pack 到既有工坊条目 `3821170924`，成功后公开 Release。工坊标题、描述、封面、可见性保持原状，变更说明原样使用 `CHANGELOG.md` 中对应版本的中文和英文段落（含版本标题），不再仅写版本号。发布前必须补齐该版本的双语条目；缺失、重复或语言段落为空时准备阶段失败。准备阶段提取并保存 `release-notes` artifact，与 pack 一起等待审批，GitHub Release 也使用相同说明并附加校验和与工坊地址。源码与构建输入随 tag 提供，分发遵循 [LICENSE](../LICENSE)。
 
 仓库管理员需在 Actions → General → Workflow permissions 允许 Actions 创建 PR（界面选项为 Allow GitHub Actions to create and approve pull requests）。流程只创建、验证和合并 PR，不替人提交批准评审；`main` 的 PR 和 `verify` 要求继续生效。另需配置两个 Environment：
 
