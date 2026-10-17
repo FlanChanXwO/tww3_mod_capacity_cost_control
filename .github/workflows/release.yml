@@ -72,7 +72,7 @@ jobs:
           The release workflow dispatches Verify for this exact commit and merges only after it passes.
           ## 检查清单 / Checklist
           - [x] 没有引入恶意代码 / No malicious code
-          - [x] 涉及的行为、配置或兼容影响已说明 / Relevant impacts are documented
+          - [x] 涉及的行为、配置或兼容影响已说明 / Relevant behavior, configuration, or compatibility impacts are documented
           EOF
             gh pr create --head "$BRANCH" --base main --title "Release v$VERSION" --body-file "$RUNNER_TEMP/version-pr.md"
             pr=$(gh pr list --head "$BRANCH" --base main --state open --json number --jq '.[0].number')
