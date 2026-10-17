@@ -96,6 +96,8 @@ python script/ci/check_pr_template.py --body-file pr-body.md
 
 ## Deployment and releases
 
+Maintain the subscribed mod through GitHub: merge code and the matching bilingual CHANGELOG entry, dispatch the release workflow, and complete cloud approval. No local pack copy or launcher upload is required. Steam downloads subscription updates; fully exit the game and restart after the download completes. Check the MCT home page version, Steam/GitHub icons, and all three link buttons. An outdated subscription pack still displays old content even after the source has been fixed.
+
 Older saves import MCT settings and the three scripted purchase histories, preserving newer records. Validate migration with an original old save, then save to a new file to keep the original.
 
 Exit WH3, back up the previous pack outside the game directory, and disable conflicting mods. Set `WH3_PATH` to the game installation, then copy the build and compare SHA256:

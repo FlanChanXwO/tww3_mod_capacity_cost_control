@@ -145,6 +145,8 @@ Get-FileHash (Join-Path $gameData 'tww3_mod_capacity_cost_control.pack') -Algori
 
 ## 发布
 
+订阅版的维护从 GitHub 完成：合并代码和对应版本的双语 CHANGELOG，调度发布工作流并完成云端审批；无需本机复制 pack 或再用启动器上传。订阅端由 Steam 下载更新，已经运行的游戏需完全退出并在下载完成后重新启动。验收时核对 MCT 首页版本、Steam/GitHub 图标与三个链接按钮；订阅目录的 pack 尚未更新时，即使源码已经修复，游戏仍会显示旧内容。
+
 版本唯一来源为 `data/project.json`，构建会将版本、工坊 ID 和仓库链接写入包内 `config/metadata.lua`。MCT 使用原生版本与链接接口显示这些数据；右侧三个按钮分别打开问题反馈、工坊和仓库。
 
 在 GitHub Actions 运行 [Release mod](../.github/workflows/release.yml)，分支选择 `main`，版本输入 `1.0.0` 这样的三段数字，不加 `v`。若版本变化，流程先建立 `codex/release-v<版本>` 分支和版本 PR，显式调度该提交的 Verify，通过后按现有分支保护合并；版本相同时直接复用 `main`。调度异步入队，最多等待两分钟获取验证 run ID。构建固定到已合并的提交，使用 Python 3.12、Lua 5.4 和 RPFM 5.1.0 完整验证、生成 pack，并保存 `release-pack` artifact 和 SHA256。构建使用 `windows-2025` runner 和官方 Windows RPFM 包；Lua 5.4.8 从官方源码用 runner 已有 GCC 编译。Linux 发行包在 Ubuntu 24.04 实测缺少 `libgit2.so.1.9`，因此采用与本机验证一致的 Windows 工具链。云端使用固定 schema 提交 `57a23a849fcaa805ccf3afe743bf46fd14a1a43c`；只导入仓库提供的表，无需游戏安装目录。RPFM server 启动最多等待 30 秒，失败日志随 job 输出。
