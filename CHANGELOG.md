@@ -99,4 +99,3 @@ This changelog follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) 
 - Import older MCT settings and Amethyst, Shang-Yang, and Beastmen purchase counts while preserving newer records. Unrecoverable history starts from a new baseline.
 - Display the current version, Steam Workshop and GitHub links in MCT, with links for feedback, the Workshop, and contributions.
 - Include optional Amethyst panel diagnostics and a release workflow with cloud approval, pack checksums, and automated Workshop uploads.
-
