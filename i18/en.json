@@ -1,0 +1,61 @@
+{
+  "title": "Unit Capacity Cost Control",
+  "description": "Configurable linear capacity-cost scaling for Nagash, Chaos Dwarfs, Armies of Shang-Yang, Beastmen, and Empire Amethyst units. Applies only to human players.",
+  "sections": {
+    "nagash": "Nagash / Undead Legions",
+    "chaos_dwarfs": "Chaos Dwarfs / Hell-Forge",
+    "bhashiva": "Armies of Shang-Yang",
+    "beastmen": "Beastmen / Units and three hero types",
+    "amethyst": "Empire / Amethyst units"
+  },
+  "options": {
+    "enabled": {
+      "text": "Enable override",
+      "tooltip": "Disable this to follow the current vanilla capacity-cost rules."
+    },
+    "mode": {
+      "text": "Scaling per purchase",
+      "tooltip": "The percentage is applied linearly to the base cost for each recorded purchase."
+    },
+    "custom": {
+      "text": "Custom scaling (%)",
+      "tooltip": "Used only in Custom mode. Enter a finite number greater than 0."
+    }
+  },
+  "dropdown_values": {
+    "no_scaling": {
+      "text": "0% - No scaling",
+      "tooltip": "Keep the base capacity cost."
+    },
+    "light": {
+      "text": "5%",
+      "tooltip": "Increase capacity cost by 5% per purchase."
+    },
+    "medium": {
+      "text": "10%",
+      "tooltip": "Increase capacity cost by 10% per purchase."
+    },
+    "custom": {
+      "text": "Custom",
+      "tooltip": "Use the positive custom percentage below."
+    }
+  },
+  "validation": {
+    "custom_invalid": "Enter a finite number greater than 0."
+  },
+  "debug": {
+    "text": "Enable diagnostics",
+    "section": "Diagnostics",
+    "tooltip": "Writes diagnostics to tww3_mod_capacity_cost_control_log.txt in the game directory.",
+    "layout_note": "Rate changes recalculate from the complete purchase history."
+  },
+  "links": {
+    "section": "Other",
+    "repository": "Contribute",
+    "repository_tooltip": "Open the project repository to contribute improvements.",
+    "issues": "Issue tracker",
+    "issues_tooltip": "Open the issue tracker.",
+    "workshop": "Steam Workshop",
+    "workshop_tooltip": "Open the Steam Workshop page."
+  }
+}

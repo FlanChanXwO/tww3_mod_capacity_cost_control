@@ -1,0 +1,24 @@
+name: PR 模板检查 / PR template
+
+on:
+  pull_request:
+    branches: [main]
+    types: [opened, edited, reopened, synchronize, ready_for_review]
+
+permissions:
+  contents: read
+
+jobs:
+  template:
+    name: 检查 PR 描述 / Check PR description
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.base.ref }}
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: 校验正文与清单 / Validate description and checklist
+        run: python script/ci/check_pr_template.py --event-file "$GITHUB_EVENT_PATH"

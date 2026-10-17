@@ -1,0 +1,11 @@
+{
+  "bug": {"color": "D73A4A", "description": "问题报告 / Bug reports"},
+  "enhancement": {"color": "A2EEEF", "description": "功能请求 / Feature requests"},
+  "runtime": {"color": "5319E7", "description": "战役脚本与仪式数据 / Campaign scripts and ritual data"},
+  "MCT": {"color": "1D76DB", "description": "配置界面 / Mod configuration UI"},
+  "localization": {"color": "C2E0C6", "description": "中英文文本 / Chinese and English text"},
+  "tests": {"color": "C5DEF5", "description": "回归测试 / Regression tests"},
+  "build": {"color": "FBCA04", "description": "构建工具与输入 / Build tools and inputs"},
+  "docs": {"color": "0E8A16", "description": "项目文档 / Project documentation"},
+  "github-actions": {"color": "BFD4F2", "description": "仓库模板与自动化 / Repository templates and automation"}
+}

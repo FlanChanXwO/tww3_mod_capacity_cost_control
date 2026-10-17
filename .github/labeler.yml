@@ -1,0 +1,34 @@
+runtime:
+  - changed-files:
+      - any-glob-to-any-file:
+          - 'src/script/campaign/**'
+          - 'data/rituals.json'
+          - 'data/*_rituals.tsv'
+MCT:
+  - changed-files:
+      - any-glob-to-any-file: 'src/script/mct/**'
+localization:
+  - changed-files:
+      - any-glob-to-any-file: 'i18/**'
+tests:
+  - changed-files:
+      - any-glob-to-any-file:
+          - 'tests/**'
+          - 'script/ci/tests/**'
+build:
+  - changed-files:
+      - any-glob-to-any-file:
+          - 'script/build/**'
+          - 'script/ci/verify.py'
+          - 'data/**'
+          - 'requirements*.txt'
+docs:
+  - changed-files:
+      - any-glob-to-any-file:
+          - '*.md'
+          - 'docs/**'
+github-actions:
+  - changed-files:
+      - any-glob-to-any-file:
+          - '.github/**'
+          - 'script/ci/**'

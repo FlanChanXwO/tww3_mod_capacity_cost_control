@@ -1,0 +1,40 @@
+name: Record Workshop Release
+
+on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Existing version tag
+        required: true
+        type: string
+      workshop_id:
+        description: Steam Workshop item ID
+        required: true
+        type: string
+      pack_sha256:
+        description: SHA256 of tww3_mod_capacity_cost_control.pack
+        required: true
+        type: string
+
+permissions:
+  contents: write
+
+jobs:
+  record:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: 登记工坊更新 / Register Workshop release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          TAG: ${{ inputs.tag }}
+          WORKSHOP_ID: ${{ inputs.workshop_id }}
+          SHA256: ${{ inputs.pack_sha256 }}
+        run: python script/ci/record_release.py --tag "$TAG" --workshop-id "$WORKSHOP_ID" --pack-sha256 "$SHA256"

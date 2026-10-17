@@ -1,0 +1,61 @@
+{
+  "title": "兵种容量费用控制",
+  "description": "为纳迦什、混沌矮人、上阳诸军、野兽人和帝国紫晶兵提供可配置的容量费用线性递增控制，仅对人类玩家生效。",
+  "sections": {
+    "nagash": "纳迦什 / 不死军团",
+    "chaos_dwarfs": "混沌矮人 / 地狱熔炉",
+    "bhashiva": "上阳诸军",
+    "beastmen": "野兽人 / 兵种及三类英雄",
+    "amethyst": "帝国 / 紫晶兵"
+  },
+  "options": {
+    "enabled": {
+      "text": "启用覆盖",
+      "tooltip": "关闭后将沿用原版容量费用规则。"
+    },
+    "mode": {
+      "text": "每次购买递增",
+      "tooltip": "费率按基础费用和已记录的购买次数线性计算。"
+    },
+    "custom": {
+      "text": "自定义递增 (%)",
+      "tooltip": "仅在自定义模式下生效。请输入大于 0 的有限数字。"
+    }
+  },
+  "dropdown_values": {
+    "no_scaling": {
+      "text": "0% - 无递增",
+      "tooltip": "保持基础容量费用不变。"
+    },
+    "light": {
+      "text": "5%",
+      "tooltip": "每次购买容量费用增加 5%。"
+    },
+    "medium": {
+      "text": "10%",
+      "tooltip": "每次购买容量费用增加 10%。"
+    },
+    "custom": {
+      "text": "自定义",
+      "tooltip": "使用下方的自定义百分比。"
+    }
+  },
+  "validation": {
+    "custom_invalid": "请输入大于 0 的有限数字。"
+  },
+  "debug": {
+    "text": "启用诊断",
+    "section": "诊断",
+    "tooltip": "将诊断信息写入游戏目录下的 tww3_mod_capacity_cost_control_log.txt。",
+    "layout_note": "费率修改会按完整购买历史重新计算。"
+  },
+  "links": {
+    "section": "其它",
+    "repository": "参与贡献",
+    "repository_tooltip": "打开项目仓库，参与开发与改进。",
+    "issues": "问题反馈",
+    "issues_tooltip": "打开问题反馈页面。",
+    "workshop": "创意工坊",
+    "workshop_tooltip": "打开 Steam 创意工坊页面。"
+  }
+}

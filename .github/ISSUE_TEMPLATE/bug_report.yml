@@ -1,0 +1,26 @@
+name: 问题报告 / Bug report
+description: 报告遇到的问题。 / Report a problem.
+title: "[Bug] "
+labels: [bug]
+body:
+  - type: textarea
+    id: description
+    attributes:
+      label: 描述 / Description
+      description: 说明实际情况和预期结果。 / Describe what happened and what you expected.
+    validations: {required: true}
+  - type: textarea
+    id: steps
+    attributes:
+      label: 复现步骤 / Steps to reproduce
+      description: 说明如何触发问题。 / Explain how to reproduce the problem.
+      placeholder: |
+        1. 进入战役 / Load a campaign
+        2. …
+    validations: {required: true}
+  - type: input
+    id: version
+    attributes:
+      label: 版本号 / Version
+      description: 可选，填写模组版本。 / Optional, provide the mod version.
+    validations: {required: false}
