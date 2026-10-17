@@ -2,9 +2,11 @@ import base64
 import json
 import hashlib
 import os
+import shutil
 import subprocess
 import sys
 import tempfile
+import textwrap
 import unittest
 from pathlib import Path
 from unittest.mock import patch
@@ -16,6 +18,39 @@ from release_notes import release_notes
 
 
 class ReleaseTests(unittest.TestCase):
+    def test_version_pr_waits_for_approval_and_only_merges_after_verify_passes(self) -> None:
+        workflow = (Path(__file__).resolve().parents[3] / ".github/workflows/release.yml").read_text(encoding="utf-8")
+        step = workflow.split("      - name: Merge version PR through required verification\n", 1)[1]
+        script = textwrap.dedent(step.split("        run: |\n", 1)[1].split("      - name:", 1)[0])
+        bash = shutil.which("bash")
+        self.assertIsNotNone(bash, "Workflow checks require Bash (included with Git for Windows)")
+        stub = '''
+gh() {
+    case "$1 $2" in
+        "pr list") echo 9 ;;
+        "run list") echo 42 ;;
+        "run view")
+            if test "$4" = --json && test "$5" = url; then
+                echo https://github.com/example/repo/actions/runs/42
+            elif test -f approved; then echo queued
+            else echo action_required; fi ;;
+        "run watch") echo verify >> trace; return "$VERIFY_EXIT" ;;
+        "pr merge") echo merge >> trace ;;
+        *) return 99 ;;
+    esac
+}
+sleep() { echo approval >> trace; touch approved; }
+'''
+        for verify_exit in (0, 1):
+            with self.subTest(verify_exit=verify_exit), tempfile.TemporaryDirectory() as directory:
+                env = dict(os.environ, BRANCH="codex/release-v1.0.1", COMMIT="abc", VERIFY_EXIT=str(verify_exit),
+                           GITHUB_STEP_SUMMARY=(Path(directory) / "summary").as_posix())
+                result = subprocess.run([bash, "-e", "-c", stub + script], cwd=directory, env=env,
+                                        capture_output=True, text=True)
+                self.assertEqual(result.returncode, verify_exit, result.stderr)
+                expected = ["approval", "verify"] + (["merge"] if verify_exit == 0 else [])
+                self.assertEqual((Path(directory) / "trace").read_text().splitlines(), expected)
+
     def setUp(self) -> None:
         self.directory = tempfile.TemporaryDirectory()
         self.addCleanup(self.directory.cleanup)

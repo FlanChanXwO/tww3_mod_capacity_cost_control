@@ -22,7 +22,7 @@ jobs:
     permissions:
       contents: write
       pull-requests: write
-      actions: write
+      actions: read
     outputs:
       sha: ${{ steps.source.outputs.sha }}
       resume: ${{ steps.version.outputs.resume }}
@@ -87,7 +87,7 @@ jobs:
           ## 变更点 / Changes
           Update data/project.json for the requested release. MCT and the pack use this version.
           ## 验证步骤 / Verification
-          The release workflow dispatches Verify for this exact commit and merges only after it passes.
+          Approve the version PR's Verify workflow when GitHub requests it. Release preparation waits for that run and merges only after it passes.
           ## 检查清单 / Checklist
           - [x] 没有引入恶意代码 / No malicious code
           - [x] 涉及的行为、配置或兼容影响已说明 / Relevant behavior, configuration, or compatibility impacts are documented
@@ -95,16 +95,21 @@ jobs:
             gh pr create --head "$BRANCH" --base main --title "chore(release): v$VERSION" --assignee FlanChanXwO --reviewer FlanChanXwO --body-file "$RUNNER_TEMP/version-pr.md"
             pr=$(gh pr list --head "$BRANCH" --base main --state open --json number --jq '.[0].number')
           fi
-          # GITHUB_TOKEN 的 push 不触发普通 CI，显式调度 Verify。
-          gh workflow run verify.yml --ref "$BRANCH"
-          # workflow_dispatch 异步入队，最多等待两分钟获取本提交的 run ID。
+          # GITHUB_TOKEN 创建的 PR 会触发待批准的 CI；等待该 PR 的检查，避免另跑 dispatch 后仍被分支保护拦截。
+          # PR 事件异步入队，最多等待两分钟获取本提交的 run ID。
           run_id=''
           for attempt in $(seq 1 24); do
-            run_id=$(gh run list --workflow verify.yml --event workflow_dispatch --branch "$BRANCH" --commit "$COMMIT" --limit 1 --json databaseId --jq '.[0].databaseId // empty')
+            run_id=$(gh run list --workflow verify.yml --event pull_request --branch "$BRANCH" --commit "$COMMIT" --limit 1 --json databaseId --jq '.[0].databaseId // empty')
             if test -n "$run_id"; then break; fi
             sleep 5
           done
           test -n "$run_id"
+          run_url=$(gh run view "$run_id" --json url --jq .url)
+          echo "Version PR #$pr: approve its Verify workflow if requested: $run_url" >> "$GITHUB_STEP_SUMMARY"
+          # action_required 在 gh run watch 中视为已结束，先等维护者在 GitHub 或通过 gh 批准。
+          while test "$(gh run view "$run_id" --json conclusion --jq .conclusion)" = action_required; do
+            sleep 10
+          done
           gh run watch "$run_id" --exit-status
           gh pr merge "$pr" --squash --delete-branch --match-head-commit "$COMMIT"
       - name: Record committed release source
