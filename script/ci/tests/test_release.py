@@ -12,6 +12,7 @@ from unittest.mock import patch
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 import prepare_release
 import upload_workshop
+from release_notes import release_notes
 
 
 class ReleaseTests(unittest.TestCase):
@@ -25,6 +26,9 @@ class ReleaseTests(unittest.TestCase):
         self.pack = self.root / "approved.pack"
         self.pack.write_bytes(b"approved pack")
         self.sha256 = hashlib.sha256(self.pack.read_bytes()).hexdigest()
+        self.notes = '## [1.0.0] - 2026-10-17\n\n### 简体中文\n\n- 显示版本。\n\n### English\n\n- Show the version.\n'
+        self.changelog = self.root / 'CHANGELOG.md'
+        self.changelog.write_text('# Changelog\n\n' + self.notes, encoding='utf-8')
         for module in (prepare_release, upload_workshop):
             patcher = patch.object(module, "ROOT", self.root)
             patcher.start()
@@ -39,6 +43,28 @@ class ReleaseTests(unittest.TestCase):
         self.git("config", "user.name", "Release tests")
         self.git("add", "data/project.json")
         self.git("commit", "--quiet", "-m", "Initial version")
+
+    def test_release_notes_preserve_both_languages_and_select_exact_version(self) -> None:
+        newer = self.notes.replace("1.0.0", "1.1.0").replace("显示版本", "新功能")
+        self.changelog.write_text("# Changelog\n\n" + newer + "\n" + self.notes, encoding="utf-8")
+        self.assertEqual(release_notes(self.changelog, "1.0.0"), self.notes)
+        self.assertEqual(release_notes(self.changelog, "1.1.0"), newer)
+
+    def test_release_notes_reject_missing_duplicate_or_incomplete_entries(self) -> None:
+        for text in ("# Changelog\n", self.notes + "\n" + self.notes,
+                     self.notes.split("### English")[0],
+                     self.notes.split("- Show the version.")[0],
+                     self.notes.replace("- 显示版本。", "")):
+            with self.subTest(text=text):
+                self.changelog.write_text(text, encoding="utf-8")
+                with self.assertRaises(ValueError):
+                    release_notes(self.changelog, "1.0.0")
+
+    def test_vdf_preserves_unicode_newlines_and_escapes_quotes(self) -> None:
+        self.assertEqual(upload_workshop.quote_vdf('中文\n"quoted"\\path'), '"中文\n\\"quoted\\"\\\\path"')
+        with self.assertRaisesRegex(ValueError, "notes must not be empty"):
+            upload_workshop.prepare_upload(self.pack, self.sha256, self.root / "upload", "\n  ")
+        self.assertFalse((self.root / "upload").exists())
 
     def test_version_rejects_invalid_or_older_values_without_writing(self) -> None:
         before = self.project.read_bytes()
@@ -62,11 +88,13 @@ class ReleaseTests(unittest.TestCase):
             prepare_release.prepare_release("1.2.3", resume=True)
 
     def test_upload_vdf_preserves_listing_and_uses_approved_content(self) -> None:
-        vdf = upload_workshop.prepare_upload(self.pack, self.sha256, self.root / "upload")
+        vdf = upload_workshop.prepare_upload(self.pack, self.sha256, self.root / "upload", self.notes)
         text = vdf.read_text(encoding="utf-8")
         self.assertIn('"appid" "1142710"', text)
         self.assertIn('"publishedfileid" "3821170924"', text)
-        self.assertIn('"changenote" "v1.0.0"', text)
+        self.assertIn('"changenote" "' + self.notes + '"', text)
+        self.assertNotIn('\\u', upload_workshop.quote_vdf(self.notes))
+        self.assertNotIn('\\n', upload_workshop.quote_vdf(self.notes))
         for untouched in ("title", "description", "previewfile", "visibility"):
             self.assertNotIn('"' + untouched + '"', text)
         self.assertEqual((vdf.parent / "content" / upload_workshop.PACK_NAME).read_bytes(), self.pack.read_bytes())
@@ -74,13 +102,13 @@ class ReleaseTests(unittest.TestCase):
     def test_tampered_pack_is_not_prepared(self) -> None:
         self.pack.write_bytes(b"tampered")
         with self.assertRaisesRegex(ValueError, "SHA256 differs"):
-            upload_workshop.prepare_upload(self.pack, self.sha256, self.root / "upload")
+            upload_workshop.prepare_upload(self.pack, self.sha256, self.root / "upload", self.notes)
         self.assertFalse((self.root / "upload").exists())
 
     def test_upload_cannot_create_a_new_item(self) -> None:
         self.project.write_text('{"version": "1.0.0", "workshop_id": "0"}')
         with self.assertRaisesRegex(ValueError, "new Workshop item"):
-            upload_workshop.prepare_upload(self.pack, self.sha256, self.root / "upload")
+            upload_workshop.prepare_upload(self.pack, self.sha256, self.root / "upload", self.notes)
 
     def test_steam_requires_success_confirmation_and_removes_credentials(self) -> None:
         steamcmd = self.root / "steamcmd/steamcmd.sh"
@@ -100,10 +128,10 @@ class ReleaseTests(unittest.TestCase):
                 result = subprocess.CompletedProcess([], returncode, stdout=stdout, stderr="")
                 with patch.object(upload_workshop.subprocess, "run", return_value=result) as run:
                     if confirmed:
-                        upload_workshop.upload(steamcmd, self.pack, self.sha256)
+                        upload_workshop.upload(steamcmd, self.pack, self.sha256, self.notes)
                     else:
                         with self.assertRaisesRegex(RuntimeError, "SteamCMD did not confirm"):
-                            upload_workshop.upload(steamcmd, self.pack, self.sha256)
+                            upload_workshop.upload(steamcmd, self.pack, self.sha256, self.notes)
                 self.assertIn("+@NoPromptForPassword", run.call_args.args[0])
                 self.assertFalse((steamcmd.parent / "config/config.vdf").exists())
 

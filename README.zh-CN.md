@@ -13,7 +13,7 @@
 ![Python](https://img.shields.io/badge/build-Python_3.12-3776ab?style=flat-square&logo=python&logoColor=white)
 [![License](https://img.shields.io/badge/license-AFPL_v9-blue?style=flat-square)](LICENSE)
 
-[安装](#安装) · [配置](#配置) · [文档](docs/index.zh-CN.md) · [许可证](#许可证)
+[安装](#安装) · [配置](#配置) · [文档](docs/index.zh-CN.md) · [更新日志](CHANGELOG.md) · [许可证](#许可证)
 
 </div>
 

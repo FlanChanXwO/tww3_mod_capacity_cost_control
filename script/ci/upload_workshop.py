@@ -15,7 +15,12 @@ from prepare_release import ROOT, VERSION
 PACK_NAME = "tww3_mod_capacity_cost_control.pack"
 
 
-def prepare_upload(pack: Path, expected_sha256: str, directory: Path) -> Path:
+def quote_vdf(value: str) -> str:
+    # KeyValues 直接保存 UTF-8 与换行，不使用 JSON 的 Unicode/换行转义。
+    return '"' + value.replace("\\", "\\\\").replace('"', '\\"') + '"'
+
+
+def prepare_upload(pack: Path, expected_sha256: str, directory: Path, notes: str) -> Path:
     metadata = json.loads((ROOT / "data/project.json").read_text(encoding="utf-8"))
     if not re.fullmatch(r"[1-9][0-9]*", metadata["workshop_id"]):
         raise ValueError("Refusing to create a new Workshop item")
@@ -23,6 +28,8 @@ def prepare_upload(pack: Path, expected_sha256: str, directory: Path) -> Path:
         raise ValueError("Invalid project version")
     if not re.fullmatch(r"[0-9a-f]{64}", expected_sha256):
         raise ValueError("Invalid expected pack SHA256")
+    if not notes.strip():
+        raise ValueError("Release notes must not be empty")
     with pack.open("rb") as stream:
         if hashlib.file_digest(stream, "sha256").hexdigest() != expected_sha256:
             raise ValueError("Pack SHA256 differs from the approved build")
@@ -34,21 +41,21 @@ def prepare_upload(pack: Path, expected_sha256: str, directory: Path) -> Path:
         "appid": "1142710",
         "publishedfileid": metadata["workshop_id"],
         "contentfolder": str(content.resolve()),
-        "changenote": "v" + metadata["version"],
+        "changenote": notes,
     }
     vdf = directory / "workshop.vdf"
     vdf.write_text('"workshopitem"\n{\n' + "".join(
-        f"    {json.dumps(key)} {json.dumps(value)}\n" for key, value in values.items()
+        f"    {quote_vdf(key)} {quote_vdf(value)}\n" for key, value in values.items()
     ) + "}\n", encoding="utf-8")
     return vdf
 
 
-def upload(steamcmd: Path, pack: Path, expected_sha256: str) -> None:
+def upload(steamcmd: Path, pack: Path, expected_sha256: str, notes: str) -> None:
     username = os.environ["STEAM_USERNAME"]
     cached_config = base64.b64decode(os.environ["STEAM_CONFIG_VDF"], validate=True)
     if not username or not cached_config:
         raise ValueError("Steam username and authenticated config.vdf are required")
-    vdf = prepare_upload(pack, expected_sha256, ROOT / "build/workshop")
+    vdf = prepare_upload(pack, expected_sha256, ROOT / "build/workshop", notes)
     config = steamcmd.parent / "config/config.vdf"
     config.parent.mkdir(parents=True, exist_ok=True)
     config.write_bytes(cached_config)
@@ -75,5 +82,6 @@ if __name__ == "__main__":
     parser.add_argument("--steamcmd", type=Path, required=True)
     parser.add_argument("--pack", type=Path, required=True)
     parser.add_argument("--sha256", required=True)
+    parser.add_argument("--notes-file", type=Path, required=True)
     args = parser.parse_args()
-    upload(args.steamcmd.resolve(), args.pack.resolve(), args.sha256)
+    upload(args.steamcmd.resolve(), args.pack.resolve(), args.sha256, args.notes_file.read_text(encoding="utf-8"))
