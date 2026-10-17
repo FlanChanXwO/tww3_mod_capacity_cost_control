@@ -426,9 +426,18 @@ function scenarios.mct_custom_input_validation()
             return registration
         end}
     end
+    local link_contexts = {}
     env.common = {get_context_value = function() return true end,
-        set_context_value = function(_, _, url) opened_urls[#opened_urls + 1] = url end,
-        call_context_command = noop}
+        set_context_value = function(context_type, key, url)
+            assert_value(context_type, "CcoScriptObject", "link must use the engine script context")
+            link_contexts[key] = url
+        end,
+        call_context_command = function(context_type, key, command)
+            assert_value(context_type, "CcoScriptObject", "overlay must use the engine script context")
+            assert_value(command, "OpenOverlayToUrl(StringValue, false)", "link must open the Steam overlay")
+            assert(link_contexts[key], "overlay must use the context containing the destination")
+            opened_urls[#opened_urls + 1] = link_contexts[key]
+        end}
     -- MCT settings 没有 campaign core；只允许通过 pack 中的 loadfile 路径加载依赖。
     local mct_env = setmetatable({core = false}, {__index = env})
     mct_env.loadfile = function(path)
@@ -449,7 +458,9 @@ function scenarios.mct_custom_input_validation()
         project_workshop = "https://steamcommunity.com/sharedfiles/filedetails/?id=" .. metadata.workshop_id,
         project_repository = metadata.github_repository}) do
         assert(link_callbacks[key], key .. " must have a working link")
+        local opened_count = #opened_urls
         link_callbacks[key]()
+        assert_value(#opened_urls, opened_count + 1, "each click must issue an overlay command")
         assert_value(opened_urls[#opened_urls], url, "link must open its configured destination")
     end
     for key, title in pairs({project_issues = "问题反馈", project_workshop = "创意工坊", project_repository = "参与贡献"}) do

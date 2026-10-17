@@ -1,5 +1,21 @@
 # 更新日志 / Changelog
 
+## [1.0.1] - 2026-10-17
+
+### 简体中文
+
+- 更新订阅版的 MCT 项目元数据，显示当前版本以及可点击的 Steam 创意工坊和 GitHub 图标。
+- 补齐问题反馈、创意工坊、参与贡献按钮的目标地址。
+- 加强链接跳转回归检查，确认点击会使用目标地址调用 Steam Overlay 打开命令。
+- 通过 GitHub Actions 构建、审批并更新工坊，GitHub Release 与工坊改动说明共用本条双语日志。
+
+### English
+
+- Update the subscribed mod's MCT metadata to display the current version and clickable Steam Workshop and GitHub icons.
+- Supply the destination URLs for the issue tracker, Workshop, and contribution buttons.
+- Strengthen link regression checks to verify that clicks invoke the Steam Overlay command with the intended destination.
+- Build, approve, and update the Workshop through GitHub Actions, using this bilingual entry for both GitHub Release and Workshop change notes.
+
 ## [1.0.0] - 2026-10-17
 
 ### 简体中文
