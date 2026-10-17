@@ -389,12 +389,16 @@ function scenarios.mct_custom_input_validation()
     assert(env.math.huge == nil, "validation must run without math.huge")
     local validators, sections, defaults, dropdowns = {}, {}, {}, {}
     local labels, buttons, section_titles, sorters = {}, {}, {}, {}
-    local layout_groups
+    local link_callbacks, opened_urls = {}, {}
+    local layout_groups, registered_version, workshop_id, github_id
     local function noop() end
     local registration = {set_title = function(_, title)
             assert_value(title, "兵种容量费用控制", "MCT title must match the current mod name")
         end,
         set_author = function(_, author) assert_value(author, "FlanChanXwO", "author comes from project metadata") end,
+        set_version = function(_, version) registered_version = version end,
+        set_workshop_id = function(_, id) workshop_id = id end,
+        set_github_id = function(_, id) github_id = id end,
         set_description = noop,
         add_new_section = function(_, key)
             sections[#sections + 1] = key
@@ -407,6 +411,7 @@ function scenarios.mct_custom_input_validation()
             return {set_assigned_section = noop,
                 set_text = function(_, text) labels[key] = text end,
                 set_button_text = function(_, text) buttons[key] = text end,
+                set_callback = function(_, callback) link_callbacks[key] = callback end,
                 set_tooltip_text = noop,
                 set_default_value = function(_, value) defaults[key] = value end,
                 add_dropdown_value = function(_, value)
@@ -421,7 +426,9 @@ function scenarios.mct_custom_input_validation()
             return registration
         end}
     end
-    env.common = {get_context_value = function() return true end}
+    env.common = {get_context_value = function() return true end,
+        set_context_value = function(_, _, url) opened_urls[#opened_urls + 1] = url end,
+        call_context_command = noop}
     -- MCT settings 没有 campaign core；只允许通过 pack 中的 loadfile 路径加载依赖。
     local mct_env = setmetatable({core = false}, {__index = env})
     mct_env.loadfile = function(path)
@@ -434,6 +441,17 @@ function scenarios.mct_custom_input_validation()
         return loadfile(file, "t", mct_env)
     end
     load_in_env("src/script/mct/settings/tww3_mod_capacity_cost_control_mct.lua", mct_env)
+    local metadata = assert(loadfile("build/generated/metadata.lua"))()
+    assert_value(registered_version, metadata.version, "MCT must display the packaged version")
+    assert_value(workshop_id, "3821170924", "MCT must link the published Workshop item")
+    assert_value(github_id, "FlanChanXwO/tww3_mod_capacity_cost_control", "MCT must link the project repository")
+    for key, url in pairs({project_issues = metadata.github_repository .. "/issues",
+        project_workshop = "https://steamcommunity.com/sharedfiles/filedetails/?id=" .. metadata.workshop_id,
+        project_repository = metadata.github_repository}) do
+        assert(link_callbacks[key], key .. " must have a working link")
+        link_callbacks[key]()
+        assert_value(opened_urls[#opened_urls], url, "link must open its configured destination")
+    end
     for key, title in pairs({project_issues = "问题反馈", project_workshop = "创意工坊", project_repository = "参与贡献"}) do
         assert(labels[key] == title, key .. ": action label must be localized separately from its button")
         assert_value(buttons[key], title, "action button must use the localized title")

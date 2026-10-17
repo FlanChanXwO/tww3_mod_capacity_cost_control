@@ -36,6 +36,9 @@ local description = L.description or "Configurable capacity cost scaling for Nag
 mct_mod:set_title(title)
 mct_mod:set_author(metadata.author)
 mct_mod:set_description(description)
+mct_mod:set_version(metadata.version)
+mct_mod:set_workshop_id(metadata.workshop_id)
+mct_mod:set_github_id(metadata.github_repository:match("github%.com/(.+)$"))
 
 local sections = L.sections or {}
 local options = L.options or {}

@@ -73,4 +73,6 @@ Campaign 模块通过 `core:load_global_script("capacity_cost_control.config.set
 
 `script/ci/verify.py` 分别运行模组测试和工具测试，默认包含 RPFM 构建；`--skip-pack` 只跳过打包。环境与命令见[开发指南](docs/development.zh-CN.md)。
 
+`.github/workflows/release.yml` 接收版本号，必要时通过版本 PR 和显式 Verify 更新 `data/project.json`，再固定到已合并提交运行完整验证与云端 RPFM 构建，保存 pack 和校验和。维护者在 `release-approval` 审批后，才由独立发布 job 推送 tag、上传 Steam 并公开附带该 pack 的 GitHub Release。`script/ci/prepare_release.py` 约束版本与 tag；`upload_workshop.py` 校验获批产物并更新既有工坊条目。MCT 原生版本、工坊与 GitHub 链接也读取同一份包内元数据。
+
 生成文件存放于 `build/generated/`，按上表映射打包到模块目录。MCT 通过完整 `loadfile` 路径读取常量、元数据和文本。

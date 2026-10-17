@@ -1,0 +1,272 @@
+name: Release mod
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Release version (MAJOR.MINOR.PATCH, for example 1.0.0)'
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release-mod
+  cancel-in-progress: false
+
+jobs:
+  prepare:
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+      pull-requests: write
+      actions: write
+    outputs:
+      sha: ${{ steps.source.outputs.sha }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Prepare version branch
+        id: version
+        env:
+          VERSION: ${{ inputs.version }}
+        run: |
+          python script/ci/prepare_release.py "$VERSION"
+          if git diff --quiet; then exit 0; fi
+          branch="codex/release-v$VERSION"
+          if test -n "$(git ls-remote --heads origin "$branch")"; then
+            git fetch origin "$branch"
+            git diff --exit-code FETCH_HEAD -- .
+            git restore data/project.json
+            git checkout --detach FETCH_HEAD
+          else
+            git switch -c "$branch"
+            git config user.name 'github-actions[bot]'
+            git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+            git add data/project.json
+            git commit -m "Release v$VERSION"
+            git push origin "$branch"
+          fi
+          echo "branch=$branch" >> "$GITHUB_OUTPUT"
+          echo "sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
+      - name: Merge version PR through required verification
+        if: steps.version.outputs.branch != ''
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VERSION: ${{ inputs.version }}
+          BRANCH: ${{ steps.version.outputs.branch }}
+          COMMIT: ${{ steps.version.outputs.sha }}
+        run: |
+          pr=$(gh pr list --head "$BRANCH" --base main --state open --json number --jq '.[0].number // empty')
+          if test -z "$pr"; then
+            cat > "$RUNNER_TEMP/version-pr.md" <<'EOF'
+          ## 变更点 / Changes
+          Update data/project.json for the requested release. MCT and the pack use this version.
+          ## 验证步骤 / Verification
+          The release workflow dispatches Verify for this exact commit and merges only after it passes.
+          ## 检查清单 / Checklist
+          - [x] 没有引入恶意代码 / No malicious code
+          - [x] 涉及的行为、配置或兼容影响已说明 / Relevant impacts are documented
+          EOF
+            gh pr create --head "$BRANCH" --base main --title "Release v$VERSION" --body-file "$RUNNER_TEMP/version-pr.md"
+            pr=$(gh pr list --head "$BRANCH" --base main --state open --json number --jq '.[0].number')
+          fi
+          # GITHUB_TOKEN 的 push 不触发普通 CI，显式调度 Verify。
+          gh workflow run verify.yml --ref "$BRANCH"
+          # workflow_dispatch 异步入队，最多等待两分钟获取本提交的 run ID。
+          run_id=''
+          for attempt in $(seq 1 24); do
+            run_id=$(gh run list --workflow verify.yml --event workflow_dispatch --branch "$BRANCH" --commit "$COMMIT" --limit 1 --json databaseId --jq '.[0].databaseId // empty')
+            if test -n "$run_id"; then break; fi
+            sleep 5
+          done
+          test -n "$run_id"
+          gh run watch "$run_id" --exit-status
+          gh pr merge "$pr" --squash --delete-branch --match-head-commit "$COMMIT"
+      - name: Record committed release source
+        id: source
+        run: |
+          git fetch origin main
+          echo "sha=$(git rev-parse origin/main)" >> "$GITHUB_OUTPUT"
+
+  build:
+    needs: prepare
+    runs-on: ubuntu-24.04
+    outputs:
+      sha256: ${{ steps.pack.outputs.sha256 }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.prepare.outputs.sha }}
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Check committed version
+        env:
+          VERSION: ${{ inputs.version }}
+        run: |
+          python - <<'PY'
+          import json, os
+          from pathlib import Path
+          metadata = json.loads(Path('data/project.json').read_text(encoding='utf-8'))
+          assert metadata['version'] == os.environ['VERSION'], 'Merged version differs from release request'
+          PY
+      - name: Install validation tools
+        run: |
+          python -m pip install -r requirements-dev.txt
+          sudo apt-get update
+          sudo apt-get install -y lua5.4 zstd
+      - name: Install RPFM 5.1.0
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          mkdir -p "$RUNNER_TEMP/rpfm"
+          gh release download v5.1.0 --repo Frodo45127/rpfm --pattern 'rpfm-v5.1.0-x86_64-unknown-linux-gnu.tar.zst' --dir "$RUNNER_TEMP/rpfm"
+          tar --zstd -xf "$RUNNER_TEMP/rpfm/"*.tar.zst -C "$RUNNER_TEMP/rpfm"
+          server=$(find "$RUNNER_TEMP/rpfm" -name rpfm_server -type f)
+          test -n "$server"
+          chmod +x "$server"
+          "$server" > "$RUNNER_TEMP/rpfm-server.log" 2>&1 &
+          # server 启动是异步的；等待 HTTP 就绪后才建立 MCP session。
+          timeout 30 bash -c 'until curl --silent --fail http://127.0.0.1:45127/version; do sleep 1; done'
+      - name: Install pinned WH3 schema
+        run: |
+          python - <<'PY'
+          import sys
+          import urllib.request
+          from pathlib import Path
+          sys.path.insert(0, 'script/build')
+          from rpfm_mcp import RpfmMcpClient
+          directory = Path(RpfmMcpClient().call_tool('schemas_path', {})['PathBuf'])
+          directory.mkdir(parents=True, exist_ok=True)
+          urllib.request.urlretrieve(
+              'https://raw.githubusercontent.com/Frodo45127/rpfm-schemas/57a23a849fcaa805ccf3afe743bf46fd14a1a43c/schema_wh3.ron',
+              directory / 'schema_wh3.ron')
+          PY
+      - name: Validate and build pack
+        env:
+          LUA: lua5.4
+        run: python script/ci/verify.py
+      - name: Verify packaged metadata
+        run: |
+          python - <<'PY'
+          import sys
+          from pathlib import Path
+          sys.path.insert(0, 'script/build')
+          from rpfm_mcp import decode_external_text
+          actual = decode_external_text('build/tww3_mod_capacity_cost_control.pack',
+              'script/campaign/capacity_cost_control/config/metadata.lua')['TextRFileInfo'][0]['contents']
+          expected = Path('build/generated/metadata.lua').read_text(encoding='utf-8')
+          assert actual.replace('\r\n', '\n') == expected, 'Pack metadata differs from release inputs'
+          PY
+      - name: Record pack checksum
+        id: pack
+        run: |
+          cd build
+          sha256sum tww3_mod_capacity_cost_control.pack > SHA256SUMS
+          echo "sha256=$(cut -d ' ' -f 1 SHA256SUMS)" >> "$GITHUB_OUTPUT"
+          echo '## Prepared release' >> "$GITHUB_STEP_SUMMARY"
+          cat SHA256SUMS >> "$GITHUB_STEP_SUMMARY"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: release-pack
+          path: |
+            build/tww3_mod_capacity_cost_control.pack
+            build/SHA256SUMS
+          if-no-files-found: error
+      - name: Show RPFM failure log
+        if: failure()
+        run: cat "$RUNNER_TEMP/rpfm-server.log" 2>/dev/null || true
+
+  approve_release:
+    name: Approve final release publication
+    needs: build
+    runs-on: ubuntu-24.04
+    environment: release-approval
+    permissions: {}
+    steps:
+      - run: 'true'
+
+  publish:
+    needs: [prepare, build, approve_release]
+    runs-on: ubuntu-24.04
+    environment: release
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.prepare.outputs.sha }}
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - uses: actions/download-artifact@v4
+        with:
+          name: release-pack
+          path: build
+      - name: Verify approved pack
+        env:
+          SHA256: ${{ needs.build.outputs.sha256 }}
+        run: |
+          echo "$SHA256  build/tww3_mod_capacity_cost_control.pack" | sha256sum --check
+          cd build && sha256sum --check SHA256SUMS
+      - name: Require Steam credentials
+        env:
+          STEAM_USERNAME: ${{ secrets.STEAM_USERNAME }}
+          STEAM_CONFIG_VDF: ${{ secrets.STEAM_CONFIG_VDF }}
+        run: |
+          test -n "$STEAM_USERNAME" || { echo 'Set STEAM_USERNAME in the release Environment'; exit 1; }
+          test -n "$STEAM_CONFIG_VDF" || { echo 'Set STEAM_CONFIG_VDF in the release Environment'; exit 1; }
+      - name: Tag approved release source
+        env:
+          VERSION: ${{ inputs.version }}
+        run: |
+          python script/ci/prepare_release.py "$VERSION" --resume
+          if git show-ref --verify --quiet "refs/tags/v$VERSION"; then
+            test "$(git rev-parse "v$VERSION^{commit}")" = "$(git rev-parse HEAD)"
+          else
+            git fetch origin main
+            # 审批期间 main 有新提交时停止，防止旧构建覆盖新源码。
+            test "$(git rev-parse origin/main)" = "$(git rev-parse HEAD)"
+            git tag "v$VERSION"
+            git push origin "refs/tags/v$VERSION"
+          fi
+      - name: Create GitHub draft with approved pack
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VERSION: ${{ inputs.version }}
+          SHA256: ${{ needs.build.outputs.sha256 }}
+        run: |
+          printf 'Pack SHA256: %s\n\nSteam Workshop: https://steamcommunity.com/sharedfiles/filedetails/?id=3821170924\n' "$SHA256" > build/release-notes.md
+          if gh release view "v$VERSION" > /dev/null 2>&1; then
+            test "$(gh release view "v$VERSION" --json isDraft --jq .isDraft)" = true
+            gh release upload "v$VERSION" build/tww3_mod_capacity_cost_control.pack build/SHA256SUMS --clobber
+          else
+            gh release create "v$VERSION" build/tww3_mod_capacity_cost_control.pack build/SHA256SUMS --verify-tag --draft --title "v$VERSION" --notes-file build/release-notes.md
+          fi
+      - name: Install official SteamCMD
+        run: |
+          sudo apt-get install -y lib32gcc-s1
+          mkdir -p "$RUNNER_TEMP/steamcmd"
+          curl --fail --location https://steamcdn-a.akamaihd.net/client/installer/steamcmd_linux.tar.gz -o "$RUNNER_TEMP/steamcmd.tar.gz"
+          tar -xzf "$RUNNER_TEMP/steamcmd.tar.gz" -C "$RUNNER_TEMP/steamcmd"
+          "$RUNNER_TEMP/steamcmd/steamcmd.sh" +quit
+      - name: Upload approved pack to Steam Workshop
+        env:
+          STEAM_USERNAME: ${{ secrets.STEAM_USERNAME }}
+          STEAM_CONFIG_VDF: ${{ secrets.STEAM_CONFIG_VDF }}
+          SHA256: ${{ needs.build.outputs.sha256 }}
+        run: python script/ci/upload_workshop.py --steamcmd "$RUNNER_TEMP/steamcmd/steamcmd.sh" --pack build/tww3_mod_capacity_cost_control.pack --sha256 "$SHA256"
+      - name: Publish GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VERSION: ${{ inputs.version }}
+        run: gh release edit "v$VERSION" --draft=false
