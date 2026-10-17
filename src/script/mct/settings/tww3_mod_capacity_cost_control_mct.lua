@@ -107,7 +107,7 @@ local function add_link_option(key, url, text, tooltip)
     if option.set_button_text then option:set_button_text(text or key) end
     if option.set_tooltip_text then option:set_tooltip_text(tooltip or "") end
     if url and url ~= "" then
-        option:set_callback(function() open_url(url) end)
+        if option.set_callback then option:set_callback(function() open_url(url) end) end
     end
 end
 
