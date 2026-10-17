@@ -12,6 +12,8 @@
 ![Lua](https://img.shields.io/badge/runtime-Lua-2c2d72?style=flat-square&logo=lua)
 ![Python](https://img.shields.io/badge/build-Python_3.12-3776ab?style=flat-square&logo=python&logoColor=white)
 [![License](https://img.shields.io/badge/license-AFPL_v9-blue?style=flat-square)](LICENSE)
+[![Steam 订阅数](https://img.shields.io/steam/subscriptions/3821170924.svg?style=flat-square&logo=steam&label=subscribers)](https://steamcommunity.com/sharedfiles/filedetails/?id=3821170924)
+[![Steam 不重复访问数](https://img.shields.io/steam/views/3821170924.svg?style=flat-square&logo=steam&label=unique%20visitors)](https://steamcommunity.com/sharedfiles/filedetails/?id=3821170924)
 
 [安装](#安装) · [配置](#配置) · [文档](docs/index.zh-CN.md) · [更新日志](CHANGELOG.md) · [许可证](#许可证)
 
