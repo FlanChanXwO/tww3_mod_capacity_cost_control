@@ -10,6 +10,7 @@ local defaults = constants.defaults
 local mct_mod = mct:register_mod(metadata.mod_key)
 local layout = loadfile("script/mct/capacity_cost_control/layout.lua")
 layout = layout and layout() or {}
+local project_links = assert(loadfile("script/mct/capacity_cost_control/links.lua"))()
 
 -- MCT 用 loadfile 加载 settings 文件，package.path 可能不含 script/campaign/
 -- 所以同样用 loadfile 而非 require 加载 i18 数据。
@@ -56,7 +57,7 @@ debug_opt:set_default_value(defaults.debug_logging)
 local links_section = mct_mod:add_new_section("links")
 links_section:set_localised_text((L.links and L.links.section) or "Other")
 links_section:set_option_sort_function(function()
-    return {"project_issues", "project_workshop", "project_repository"}
+    return {"project_workshop", "project_repository"}
 end)
 
 local function add_faction_section(section_key, prefix)
@@ -96,13 +97,6 @@ local function add_faction_section(section_key, prefix)
     end)
 end
 
-local function open_url(url)
-    if not url or url == "" then return end
-    local context_key = "tww3_mod_capacity_cost_control_link"
-    common.set_context_value("CcoScriptObject", context_key, url)
-    common.call_context_command("CcoScriptObject", context_key, "OpenOverlayToUrl(StringValue, false)")
-end
-
 local function add_link_option(key, url, text, tooltip)
     local option = mct_mod:add_new_option(key, "action")
     option:set_assigned_section("links")
@@ -110,7 +104,7 @@ local function add_link_option(key, url, text, tooltip)
     if option.set_button_text then option:set_button_text(text or key) end
     if option.set_tooltip_text then option:set_tooltip_text(tooltip or "") end
     if url and url ~= "" then
-        if option.set_callback then option:set_callback(function() open_url(url) end) end
+        project_links.configure_option(option, url, key)
     end
 end
 
@@ -121,9 +115,9 @@ end
 local links = L.links or {}
 local repository = metadata.github_repository or ""
 local workshop_id = metadata.workshop_id or ""
-add_link_option("project_issues", repository ~= "" and (repository .. "/issues") or "", links.issues or "Issue tracker", links.issues_tooltip)
 add_link_option("project_workshop", workshop_id ~= "" and ("https://steamcommunity.com/sharedfiles/filedetails/?id=" .. workshop_id) or "", links.workshop or "Steam Workshop", links.workshop_tooltip)
 add_link_option("project_repository", repository, links.repository or "Contribute", links.repository_tooltip)
+project_links.apply(mct_mod, links.repository_tooltip)
 
 if layout.apply then
     layout.apply(mct_mod, constants.faction_order, constants.other_sections)

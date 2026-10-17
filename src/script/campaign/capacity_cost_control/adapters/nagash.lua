@@ -1,6 +1,6 @@
 -- 纳迦什适配器，按原版购买次数修正容量仪式费用。
 -- 读取原版递增记录，使用费用数学模块计算目标价格与补偿。
--- 保留原版 DB 与历史；仅为启用覆盖的人类派系应用修正。
+-- 保留原版 DB 与历史；仅为启用覆盖的玩家派系应用修正。
 local definition = core:load_global_script("capacity_cost_control.shared.generated_data").nagash
 local constants = core:load_global_script("capacity_cost_control.config.constants")
 local cost_math = core:load_global_script("capacity_cost_control.utils.cost_math")

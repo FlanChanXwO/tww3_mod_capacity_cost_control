@@ -1,5 +1,25 @@
 # 更新日志 / Changelog
 
+## [1.0.2] - 2026-10-17
+
+### 简体中文
+
+- 本地构建及工坊上传包含与 pack 同名的 PNG，修复订阅版启动器模组图标缺失；发布产物同时校验 pack 与图标。
+- 移除设置页的“问题反馈”按钮，保留创意工坊与参与贡献入口。
+- 项目元数据字段统一使用 `mod_id`，保留原有模组标识与日志前缀。
+- 将纳迦什相关设置中的“不死军团”更正为“亡灵军团”，统一使用“玩家”称呼。
+- 修复 MCT 首页 Steam 和 GitHub 图标的点击绑定，使用模组专属控件 ID，并在切页或重开时重新绑定，避免一次点击重复打开。
+- GitHub 图标和参与贡献入口经 Steam 官方外链确认页打开仓库，工坊入口保持直达。
+
+### English
+
+- Include a matching PNG in local builds and Workshop uploads to restore the subscribed mod icon in the launcher; checksum both the pack and icon.
+- Remove the Issue tracker button from settings, keeping Workshop and Contribute.
+- Rename the project metadata field to `mod_id`, preserving the mod identity and log prefix.
+- Correct the Chinese name of the Legions of Undeath in the Nagash settings and simplify player terminology in both languages.
+- Fix click bindings for the MCT home page Steam and GitHub icons using mod-specific component IDs, rebinding after page recreation and avoiding duplicate navigation.
+- Open the GitHub icon and Contribute destination through Steam’s official external-link confirmation page; keep Workshop direct.
+
 ## [1.0.1] - 2026-10-17
 
 ### 简体中文

@@ -129,7 +129,7 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           VERSION: ${{ inputs.version }}
         run: |
-          gh release download "v$VERSION" --pattern tww3_mod_capacity_cost_control.pack --pattern SHA256SUMS --dir build
+          gh release download "v$VERSION" --pattern tww3_mod_capacity_cost_control.pack --pattern tww3_mod_capacity_cost_control.png --pattern SHA256SUMS --dir build
           expected=$(gh release view "v$VERSION" --json body --jq .body | sed -n 's/^Pack SHA256: //p')
           [[ "$expected" =~ ^[0-9a-f]{64}$ ]]
           echo "$expected  build/tww3_mod_capacity_cost_control.pack" | sha256sum --check
@@ -140,6 +140,7 @@ jobs:
           name: release-pack
           path: |
             build/tww3_mod_capacity_cost_control.pack
+            build/tww3_mod_capacity_cost_control.png
             build/SHA256SUMS
           if-no-files-found: error
 
@@ -248,8 +249,8 @@ jobs:
         id: pack
         run: |
           cd build
-          sha256sum tww3_mod_capacity_cost_control.pack > SHA256SUMS
-          echo "sha256=$(cut -d ' ' -f 1 SHA256SUMS)" >> "$GITHUB_OUTPUT"
+          sha256sum tww3_mod_capacity_cost_control.pack tww3_mod_capacity_cost_control.png > SHA256SUMS
+          echo "sha256=$(head -n 1 SHA256SUMS | cut -d ' ' -f 1)" >> "$GITHUB_OUTPUT"
           echo '## Prepared release' >> "$GITHUB_STEP_SUMMARY"
           cat SHA256SUMS >> "$GITHUB_STEP_SUMMARY"
       - uses: actions/upload-artifact@v4
@@ -258,6 +259,7 @@ jobs:
           name: release-pack
           path: |
             build/tww3_mod_capacity_cost_control.pack
+            build/tww3_mod_capacity_cost_control.png
             build/SHA256SUMS
           if-no-files-found: error
       - name: Show RPFM failure log
@@ -333,9 +335,9 @@ jobs:
           if gh release view "v$VERSION" > /dev/null 2>&1; then
             test "$(gh release view "v$VERSION" --json isDraft --jq .isDraft)" = true
             gh release edit "v$VERSION" --notes-file build/github-release-notes.md
-            gh release upload "v$VERSION" build/tww3_mod_capacity_cost_control.pack build/SHA256SUMS --clobber
+            gh release upload "v$VERSION" build/tww3_mod_capacity_cost_control.pack build/tww3_mod_capacity_cost_control.png build/SHA256SUMS --clobber
           else
-            gh release create "v$VERSION" build/tww3_mod_capacity_cost_control.pack build/SHA256SUMS --verify-tag --draft --title "v$VERSION" --notes-file build/github-release-notes.md
+            gh release create "v$VERSION" build/tww3_mod_capacity_cost_control.pack build/tww3_mod_capacity_cost_control.png build/SHA256SUMS --verify-tag --draft --title "v$VERSION" --notes-file build/github-release-notes.md
           fi
       - name: Install official SteamCMD
         run: |

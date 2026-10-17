@@ -9,9 +9,8 @@
 [English](README.md) · [简体中文](README.zh-CN.md)
 
 ![Game](https://img.shields.io/badge/Total_War-WARHAMMER_III-8b0000?style=flat-square)
-![Lua](https://img.shields.io/badge/runtime-Lua-2c2d72?style=flat-square&logo=lua)
-![Python](https://img.shields.io/badge/build-Python_3.12-3776ab?style=flat-square&logo=python&logoColor=white)
 [![License](https://img.shields.io/badge/license-AFPL_v9-blue?style=flat-square)](LICENSE)
+[![GitHub views](https://komarev.com/ghpvc/?username=FlanChanXwO.tww3_mod_capacity_cost_control&label=views&style=flat-square)](https://github.com/FlanChanXwO/tww3_mod_capacity_cost_control)
 [![Steam subscribers](https://img.shields.io/steam/subscriptions/3821170924.svg?style=flat-square&logo=steam&label=subscribers)](https://steamcommunity.com/sharedfiles/filedetails/?id=3821170924)
 [![Steam unique visitors](https://img.shields.io/steam/views/3821170924.svg?style=flat-square&logo=steam&label=unique%20visitors)](https://steamcommunity.com/sharedfiles/filedetails/?id=3821170924)
 
@@ -19,7 +18,7 @@
 
 </div>
 
-Controls capacity cost increases for **Nagash, Chaos Dwarfs, Armies of Shang-Yang, Beastmen, and Empire Amethyst units**. Beastmen coverage includes unit and three hero capacity rituals. Human players keep normal capacity purchases, unlocks, recruitment, and army progression.
+Controls capacity cost increases for **Nagash, Chaos Dwarfs, Armies of Shang-Yang, Beastmen, and Empire Amethyst units**. Beastmen coverage includes unit and three hero capacity rituals. Players keep normal capacity purchases, unlocks, recruitment, and army progression.
 
 ## Install
 

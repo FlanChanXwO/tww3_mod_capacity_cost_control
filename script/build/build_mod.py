@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import csv
 import json
+import shutil
 from pathlib import Path
 
 from rpfm_mcp import RpfmMcpClient
@@ -335,6 +336,7 @@ def build() -> Path:
     DIST.mkdir(parents=True, exist_ok=True)
     output = DIST / PACK_NAME
     client.call_tool("save_pack_as", {"pack_key": pack_key, "path": str(output)})
+    shutil.copyfile(ROOT / "logo.png", output.with_suffix(".png"))
     return output
 
 

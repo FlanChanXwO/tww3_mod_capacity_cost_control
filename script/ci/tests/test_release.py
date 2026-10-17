@@ -60,6 +60,8 @@ sleep() { echo approval >> trace; touch approved; }
         self.project.write_text(json.dumps({"version": "1.0.0", "workshop_id": "3821170924"}) + "\n", encoding="utf-8")
         self.pack = self.root / "approved.pack"
         self.pack.write_bytes(b"approved pack")
+        self.icon = self.pack.with_suffix(".png")
+        self.icon.write_bytes(b"approved launcher icon")
         self.sha256 = hashlib.sha256(self.pack.read_bytes()).hexdigest()
         self.notes = '## [1.0.0] - 2026-10-17\n\n### 简体中文\n\n- 显示版本。\n\n### English\n\n- Show the version.\n'
         self.changelog = self.root / 'CHANGELOG.md'
@@ -133,6 +135,31 @@ sleep() { echo approval >> trace; touch approved; }
         for untouched in ("title", "description", "previewfile", "visibility"):
             self.assertNotIn('"' + untouched + '"', text)
         self.assertEqual((vdf.parent / "content" / upload_workshop.PACK_NAME).read_bytes(), self.pack.read_bytes())
+        self.assertEqual((vdf.parent / "content" / Path(upload_workshop.PACK_NAME).with_suffix(".png")).read_bytes(), self.icon.read_bytes())
+
+    def test_missing_launcher_icon_is_not_prepared(self) -> None:
+        self.icon.unlink()
+        with self.assertRaisesRegex(FileNotFoundError, "Launcher icon is required"):
+            upload_workshop.prepare_upload(self.pack, self.sha256, self.root / "upload", self.notes)
+        self.assertFalse((self.root / "upload").exists())
+
+    def test_release_checksums_cover_pack_and_launcher_icon(self) -> None:
+        workflow = (Path(__file__).resolve().parents[3] / ".github/workflows/release.yml").read_text(encoding="utf-8")
+        step = workflow.split("      - name: Record pack checksum\n", 1)[1]
+        script = textwrap.dedent(step.split("        run: |\n", 1)[1].split("      - uses:", 1)[0])
+        build = self.root / "build"
+        build.mkdir()
+        for suffix in (".pack", ".png"):
+            (build / Path(upload_workshop.PACK_NAME).with_suffix(suffix)).write_bytes(b"approved" + suffix.encode())
+        env = dict(os.environ, GITHUB_OUTPUT=(self.root / "outputs").as_posix(),
+                   GITHUB_STEP_SUMMARY=(self.root / "summary").as_posix())
+        result = subprocess.run([shutil.which("bash"), "-e", "-c", script], cwd=self.root, env=env,
+                                capture_output=True, text=True)
+        self.assertEqual(result.returncode, 0, result.stderr)
+        expected = {f"{hashlib.sha256(p.read_bytes()).hexdigest()}  {p.name}" for p in build.glob("*.*")}
+        self.assertEqual({line.replace(" *", "  ", 1) for line in (build / "SHA256SUMS").read_text().splitlines()}, expected)
+        pack_hash = hashlib.sha256((build / upload_workshop.PACK_NAME).read_bytes()).hexdigest()
+        self.assertEqual((self.root / "outputs").read_text().splitlines(), ["sha256=" + pack_hash])
 
     def test_tampered_pack_is_not_prepared(self) -> None:
         self.pack.write_bytes(b"tampered")

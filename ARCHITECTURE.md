@@ -1,6 +1,6 @@
 # 架构
 
-模组由战役入口、派系适配器、MCT 页面和 Python 构建工具组成。身份与版本来自 `data/project.json`。
+模组由战役入口、派系适配器、MCT 页面和 Python 构建工具组成。身份与版本来自 `data/project.json`，其中 `mod_id` 是模组标识，`mod_key` 是 MCT 注册键。
 
 ## 运行时模块
 
@@ -55,7 +55,11 @@ Campaign 模块通过 `core:load_global_script("capacity_cost_control.config.set
 
 设置入口为 `src/script/mct/settings/tww3_mod_capacity_cost_control_mct.lua`，通过 `loadfile` 加载常量、生成元数据、双语文本和布局模块。
 
-`src/script/mct/capacity_cost_control/layout.lua` 替换当前设置页的 `populate`，复用 MCT 控件：左列按常量顺序放五个派系，右列放诊断和其它设置。链接按问题反馈、创意工坊、参与贡献排序。地址留空时，链接按钮只显示提示，不注册跳转回调。
+`src/script/mct/capacity_cost_control/layout.lua` 替换当前设置页的 `populate`，复用 MCT 控件：左列按常量顺序放五个派系，右列放诊断和其它设置。链接按创意工坊、参与贡献排序。地址留空时，链接按钮只显示提示，不注册跳转回调。
+
+`src/script/mct/capacity_cost_control/links.lua` 为按钮绑定独立的 `CcoScriptObject` URL；`src/ui/tww3_mod_capacity_cost_control/` 中的原生控件模板通过 `ContextCommandLeftClick` 执行 `OpenOverlayToUrl(StringValue, true)`。Lua 点击监听仅记录诊断，不再转发 URL 命令。两个模板分别保留游戏文本按钮和 MCT 图标按钮的外观。首页渲染后替换本项目图标、移除旧监听，并使用模组专属 ID；MCT 切页会销毁旧控件，重开后重新绑定。
+
+原生控件的创意工坊链接已获用户确认可用；GitHub 直达在两种布尔参数下均无导航。本机引擎 `OpenOverlayToUrl` 的静态调用链对 `steamcommunity.com`、`www.totalwar.com` 有专门分支，其余地址经过额外允许列表检查。目前未找到可供 Lua 使用的注册接口。因此仅将 GitHub 导航目标转换为 Steam 官方 `linkfilter/?u=` 确认页，并逐字节编码目标 URL；工坊地址与项目元数据保持原始值。用户需要在确认页点击继续访问 GitHub。用户已在游戏中确认此路径可正常访问 GitHub。
 
 诊断默认关闭。紫晶面板遍历在开关启用后执行；日志使用 `get_timestamp()`，写入元数据指定的游戏根目录文件。日志打开失败时返回。
 
@@ -69,10 +73,10 @@ Campaign 模块通过 `core:load_global_script("capacity_cost_control.config.set
 | `data/amethyst_rituals.tsv`、`data/bhashiva_rituals.tsv` | 覆盖紫晶与上阳诸军仪式的 DB 自动递增字段 |
 | `src/` | 原样加入 pack，包括人工维护的 Lua 常量 |
 
-`script/build/build_mod.py` 将生成文件写入 `build/generated/`，再通过 `script/build/rpfm_mcp.py` 交给 RPFM 导入 DB、添加 Lua 并保存 pack。输出为 `build/tww3_mod_capacity_cost_control.pack`，声明 MCT 为可选依赖。
+`script/build/build_mod.py` 将生成文件写入 `build/generated/`，再通过 `script/build/rpfm_mcp.py` 交给 RPFM 导入 DB、添加 Lua 并保存 pack。输出为 `build/tww3_mod_capacity_cost_control.pack` 及同名 PNG；PNG 从 `logo.png` 复制，供启动器显示图标。pack 声明 MCT 为可选依赖。
 
 `script/ci/verify.py` 分别运行模组测试和工具测试，默认包含 RPFM 构建；`--skip-pack` 只跳过打包。环境与命令见[开发指南](docs/development.zh-CN.md)。
 
-`.github/workflows/release.yml` 接收版本号，必要时通过版本 PR 和获批的 PR Verify 更新 `data/project.json`，再固定到已合并提交运行完整验证与云端 RPFM 构建，保存 pack 和校验和。维护者在 `release-approval` 审批后，才由独立发布 job 推送 tag、上传 Steam 并公开附带该 pack 的 GitHub Release。`CHANGELOG.md` 保存各版本中英文说明；`script/ci/release_notes.py` 原文提取对应版本，作为独立 artifact 等待审批，供 GitHub Release 和工坊共用。`script/ci/prepare_release.py` 约束版本与 tag；`upload_workshop.py` 校验获批产物并更新既有工坊条目。MCT 原生版本、工坊与 GitHub 链接也读取同一份包内元数据。
+`.github/workflows/release.yml` 接收版本号，必要时通过版本 PR 和获批的 PR Verify 更新 `data/project.json`，再固定到已合并提交运行完整验证与云端 RPFM 构建，保存 pack、同名 PNG 和两者的校验和。维护者在 `release-approval` 审批后，才由独立发布 job 推送 tag、上传 Steam 并公开附带该 pack 的 GitHub Release。`CHANGELOG.md` 保存各版本中英文说明；`script/ci/release_notes.py` 原文提取对应版本，作为独立 artifact 等待审批，供 GitHub Release 和工坊共用。`script/ci/prepare_release.py` 约束版本与 tag；`upload_workshop.py` 校验获批产物并更新既有工坊条目。MCT 原生版本、工坊与 GitHub 链接也读取同一份包内元数据。
 
 生成文件存放于 `build/generated/`，按上表映射打包到模块目录。MCT 通过完整 `loadfile` 路径读取常量、元数据和文本。

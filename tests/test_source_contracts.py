@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import re
+import xml.etree.ElementTree as ET
 import unittest
 from pathlib import Path
 
@@ -10,6 +11,14 @@ ROOT = Path(__file__).resolve().parents[1]
 class SourceContractTests(unittest.TestCase):
     def read(self, relative: str) -> str:
         return (ROOT / relative).read_text(encoding="utf-8")
+
+    def test_mct_link_templates_use_native_click_commands(self) -> None:
+        for kind in ("icon", "action"):
+            root = ET.parse(ROOT / f"src/ui/tww3_mod_capacity_cost_control/{kind}_link.twui.xml").getroot()
+            callbacks = root.findall(".//callback_with_context[@callback_id='ContextCommandLeftClick']")
+            self.assertEqual(len(callbacks), 1)
+            self.assertEqual(callbacks[0].get("context_object_id"), "CcoScriptObject")
+            self.assertEqual(callbacks[0].get("context_function_id"), "OpenOverlayToUrl(StringValue, true)")
 
     def test_mct_settings_has_defensive_guard(self) -> None:
         # MCT settings 文件必须以防御性检查开头，MCT 未加载时静默退出。
