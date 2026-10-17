@@ -85,13 +85,21 @@ class ReleaseTests(unittest.TestCase):
     def test_steam_requires_success_confirmation_and_removes_credentials(self) -> None:
         steamcmd = self.root / "steamcmd/steamcmd.sh"
         secret = base64.b64encode(b"cached Steam login").decode()
-        for returncode, stdout in ((0, "Success. Uploaded item 3821170924"),
-                                   (0, "ERROR! Access Denied"),
-                                   (0, "Success. Uploaded item 123"), (1, "FAILED login")):
+        for returncode, stdout, confirmed in (
+            (0, "Success. Uploaded item 3821170924", True),
+            (0, "Uploading content...\x1b[0m\nCommitting update...\x1b[0mSuccess.\x1b[0mUnloading Steam API...OK", True),
+            (0, "Committing update...\nSuccess.\n", True),
+            (0, "Success.", False),
+            (0, "Committing update...\nERROR! Access Denied", False),
+            (0, "ERROR! Access Denied", False),
+            (0, "Success. Uploaded item 123", False),
+            (1, "Committing update...Success.", False),
+            (1, "FAILED login", False),
+        ):
             with self.subTest(stdout=stdout), patch.dict(os.environ, STEAM_USERNAME="user", STEAM_CONFIG_VDF=secret):
                 result = subprocess.CompletedProcess([], returncode, stdout=stdout, stderr="")
                 with patch.object(upload_workshop.subprocess, "run", return_value=result) as run:
-                    if returncode == 0 and stdout == "Success. Uploaded item 3821170924":
+                    if confirmed:
                         upload_workshop.upload(steamcmd, self.pack, self.sha256)
                     else:
                         with self.assertRaisesRegex(RuntimeError, "SteamCMD did not confirm"):

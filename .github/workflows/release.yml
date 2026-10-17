@@ -330,7 +330,11 @@ jobs:
           STEAM_USERNAME: ${{ secrets.STEAM_USERNAME }}
           STEAM_CONFIG_VDF: ${{ secrets.STEAM_CONFIG_VDF }}
           SHA256: ${{ needs.build.outputs.sha256 }}
-        run: python script/ci/upload_workshop.py --steamcmd "$HOME/Steam/steamcmd.sh" --pack build/tww3_mod_capacity_cost_control.pack --sha256 "$SHA256"
+          WORKFLOW_SHA: ${{ github.sha }}
+        run: |
+          # 恢复旧 tag 时也使用本次已审查工作流的上传工具；包、元数据与 tag 保持原版本。
+          git show "$WORKFLOW_SHA:script/ci/upload_workshop.py" > "$RUNNER_TEMP/upload_workshop.py"
+          PYTHONPATH="$GITHUB_WORKSPACE/script/ci" python "$RUNNER_TEMP/upload_workshop.py" --steamcmd "$HOME/Steam/steamcmd.sh" --pack build/tww3_mod_capacity_cost_control.pack --sha256 "$SHA256"
       - name: Publish GitHub Release
         env:
           GH_TOKEN: ${{ github.token }}

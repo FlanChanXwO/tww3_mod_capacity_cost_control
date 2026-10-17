@@ -59,8 +59,10 @@ def upload(steamcmd: Path, pack: Path, expected_sha256: str) -> None:
             "+login", username, "+workshop_build_item", str(vdf), "+quit",
         ], cwd=steamcmd.parent, stdin=subprocess.DEVNULL, capture_output=True, text=True)
         workshop_id = json.loads((ROOT / "data/project.json").read_text(encoding="utf-8"))["workshop_id"]
-        # SteamCMD 某些失败也返回 0，必须确认本次上传的目标和成功消息。
-        if result.returncode != 0 or not re.search(r"Success\. Uploaded item " + workshop_id + r"\b", result.stdout):
+        stdout = re.sub(r"\x1b\[[0-9;]*m", "", result.stdout)
+        # 新版只在提交阶段输出 Success；单独的退出码或其它阶段的 Success 都不足以确认上传。
+        confirmed = re.search(r"Success\. Uploaded item " + workshop_id + r"\b|(?:^|\n)Committing update\.\.\.\s*Success\.", stdout)
+        if result.returncode != 0 or not confirmed:
             output = (result.stdout + result.stderr).replace(username, "<Steam user>")
             raise RuntimeError(f"SteamCMD did not confirm the Workshop upload (exit {result.returncode}):\n{output}")
         print(f"Updated Workshop item {workshop_id}; pack SHA256: {expected_sha256}")
