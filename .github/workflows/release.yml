@@ -1,0 +1,190 @@
+name: Release mod
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Release version (MAJOR.MINOR.PATCH, for example 1.0.0)'
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release-mod
+  cancel-in-progress: false
+
+jobs:
+  build:
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-24.04
+    outputs:
+      sha256: ${{ steps.pack.outputs.sha256 }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Prepare version
+        env:
+          VERSION: ${{ inputs.version }}
+        run: python script/ci/prepare_release.py "$VERSION"
+      - name: Install validation tools
+        run: |
+          python -m pip install -r requirements-dev.txt
+          sudo apt-get update
+          sudo apt-get install -y lua5.4 zstd
+      - name: Install RPFM 5.1.0
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          mkdir -p "$RUNNER_TEMP/rpfm"
+          gh release download v5.1.0 --repo Frodo45127/rpfm --pattern 'rpfm-v5.1.0-x86_64-unknown-linux-gnu.tar.zst' --dir "$RUNNER_TEMP/rpfm"
+          tar --zstd -xf "$RUNNER_TEMP/rpfm/"*.tar.zst -C "$RUNNER_TEMP/rpfm"
+          server=$(find "$RUNNER_TEMP/rpfm" -name rpfm_server -type f)
+          test -n "$server"
+          chmod +x "$server"
+          "$server" > "$RUNNER_TEMP/rpfm-server.log" 2>&1 &
+          # server 启动是异步的；等待 HTTP 就绪后才建立 MCP session。
+          timeout 30 bash -c 'until curl --silent --fail http://127.0.0.1:45127/version; do sleep 1; done'
+      - name: Install pinned WH3 schema
+        run: |
+          python - <<'PY'
+          import sys
+          import urllib.request
+          from pathlib import Path
+          sys.path.insert(0, 'script/build')
+          from rpfm_mcp import RpfmMcpClient
+          directory = Path(RpfmMcpClient().call_tool('schemas_path', {})['PathBuf'])
+          directory.mkdir(parents=True, exist_ok=True)
+          urllib.request.urlretrieve(
+              'https://raw.githubusercontent.com/Frodo45127/rpfm-schemas/57a23a849fcaa805ccf3afe743bf46fd14a1a43c/schema_wh3.ron',
+              directory / 'schema_wh3.ron')
+          PY
+      - name: Validate and build pack
+        env:
+          LUA: lua5.4
+        run: python script/ci/verify.py
+      - name: Verify packaged metadata
+        run: |
+          python - <<'PY'
+          import sys
+          from pathlib import Path
+          sys.path.insert(0, 'script/build')
+          from rpfm_mcp import decode_external_text
+          actual = decode_external_text('build/tww3_mod_capacity_cost_control.pack',
+              'script/campaign/capacity_cost_control/config/metadata.lua')['TextRFileInfo'][0]['contents']
+          expected = Path('build/generated/metadata.lua').read_text(encoding='utf-8')
+          assert actual.replace('\r\n', '\n') == expected, 'Pack metadata differs from release inputs'
+          PY
+      - name: Record pack checksum
+        id: pack
+        run: |
+          cd build
+          sha256sum tww3_mod_capacity_cost_control.pack > SHA256SUMS
+          echo "sha256=$(cut -d ' ' -f 1 SHA256SUMS)" >> "$GITHUB_OUTPUT"
+          echo '## Prepared release' >> "$GITHUB_STEP_SUMMARY"
+          cat SHA256SUMS >> "$GITHUB_STEP_SUMMARY"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: release-pack
+          path: |
+            build/tww3_mod_capacity_cost_control.pack
+            build/SHA256SUMS
+          if-no-files-found: error
+      - name: Show RPFM failure log
+        if: failure()
+        run: cat "$RUNNER_TEMP/rpfm-server.log" 2>/dev/null || true
+
+  approve_release:
+    name: Approve final release publication
+    needs: build
+    runs-on: ubuntu-24.04
+    environment: release-approval
+    permissions: {}
+    steps:
+      - run: 'true'
+
+  publish:
+    needs: [build, approve_release]
+    runs-on: ubuntu-24.04
+    environment: release
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - uses: actions/download-artifact@v4
+        with:
+          name: release-pack
+          path: build
+      - name: Verify approved pack
+        env:
+          SHA256: ${{ needs.build.outputs.sha256 }}
+        run: |
+          echo "$SHA256  build/tww3_mod_capacity_cost_control.pack" | sha256sum --check
+          cd build && sha256sum --check SHA256SUMS
+      - name: Require Steam credentials
+        env:
+          STEAM_USERNAME: ${{ secrets.STEAM_USERNAME }}
+          STEAM_CONFIG_VDF: ${{ secrets.STEAM_CONFIG_VDF }}
+        run: |
+          test -n "$STEAM_USERNAME" || { echo 'Set STEAM_USERNAME in the release Environment'; exit 1; }
+          test -n "$STEAM_CONFIG_VDF" || { echo 'Set STEAM_CONFIG_VDF in the release Environment'; exit 1; }
+      - name: Prepare release commit and tag
+        env:
+          VERSION: ${{ inputs.version }}
+        run: |
+          python script/ci/prepare_release.py "$VERSION" --resume
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          if git show-ref --verify --quiet "refs/tags/v$VERSION"; then
+            git checkout "v$VERSION" -- data/project.json
+          else
+            git add data/project.json
+            if ! git diff --cached --quiet; then git commit -m "Release v$VERSION"; fi
+            git fetch origin main
+            # 审批期间 main 有新提交时停止，防止旧构建覆盖新源码。
+            git merge-base --is-ancestor origin/main HEAD
+            git tag "v$VERSION"
+            git push --atomic origin HEAD:main "refs/tags/v$VERSION"
+          fi
+      - name: Create GitHub draft with approved pack
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VERSION: ${{ inputs.version }}
+          SHA256: ${{ needs.build.outputs.sha256 }}
+        run: |
+          printf 'Pack SHA256: %s\n\nSteam Workshop: https://steamcommunity.com/sharedfiles/filedetails/?id=3821170924\n' "$SHA256" > build/release-notes.md
+          if gh release view "v$VERSION" > /dev/null 2>&1; then
+            test "$(gh release view "v$VERSION" --json isDraft --jq .isDraft)" = true
+            gh release upload "v$VERSION" build/tww3_mod_capacity_cost_control.pack build/SHA256SUMS --clobber
+          else
+            gh release create "v$VERSION" build/tww3_mod_capacity_cost_control.pack build/SHA256SUMS --verify-tag --draft --title "v$VERSION" --notes-file build/release-notes.md
+          fi
+      - name: Install official SteamCMD
+        run: |
+          sudo apt-get install -y lib32gcc-s1
+          mkdir -p "$RUNNER_TEMP/steamcmd"
+          curl --fail --location https://steamcdn-a.akamaihd.net/client/installer/steamcmd_linux.tar.gz -o "$RUNNER_TEMP/steamcmd.tar.gz"
+          tar -xzf "$RUNNER_TEMP/steamcmd.tar.gz" -C "$RUNNER_TEMP/steamcmd"
+          "$RUNNER_TEMP/steamcmd/steamcmd.sh" +quit
+      - name: Upload approved pack to Steam Workshop
+        env:
+          STEAM_USERNAME: ${{ secrets.STEAM_USERNAME }}
+          STEAM_CONFIG_VDF: ${{ secrets.STEAM_CONFIG_VDF }}
+          SHA256: ${{ needs.build.outputs.sha256 }}
+        run: python script/ci/upload_workshop.py --steamcmd "$RUNNER_TEMP/steamcmd/steamcmd.sh" --pack build/tww3_mod_capacity_cost_control.pack --sha256 "$SHA256"
+      - name: Publish GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VERSION: ${{ inputs.version }}
+        run: gh release edit "v$VERSION" --draft=false

@@ -145,7 +145,25 @@ Get-FileHash (Join-Path $gameData 'tww3_mod_capacity_cost_control.pack') -Algori
 
 ## 发布
 
-本机完整验证与包内检查 → 游戏验收 → 官方启动器更新 Workshop → 登记 GitHub Release。
+版本唯一来源为 `data/project.json`，构建会将版本、工坊 ID 和仓库链接写入包内 `config/metadata.lua`。MCT 使用原生版本与链接接口显示这些数据；右侧三个按钮分别打开问题反馈、工坊和仓库。
 
-确认版本 tag 指向验收源码，再运行[发布记录工作流](../.github/workflows/release-record.yml)，填写 tag、Workshop ID 和 pack SHA256。分发按 [LICENSE](../LICENSE) 提供对应源码、数据输入、构建脚本和许可。
+在 GitHub Actions 运行 [Release mod](../.github/workflows/release.yml)，分支选择 `main`，版本输入 `1.0.0` 这样的三段数字，不加 `v`。流程先更新待构建源码的版本，使用 Python 3.12、Lua 5.4 和 RPFM 5.1.0 完整验证、生成 pack，并保存 `release-pack` artifact 和 SHA256。云端使用固定 schema 提交 `57a23a849fcaa805ccf3afe743bf46fd14a1a43c`；只导入仓库提供的表，无需游戏安装目录。RPFM server 启动最多等待 30 秒，失败日志随 job 输出。
+
+构建通过后停在 `release-approval` Environment。下载 artifact、核对版本和校验和并完成游戏验收，再由维护者在 Actions 的 **Review deployments** 批准。审批前不创建远端 tag、GitHub Release 或上传 Steam。审批后自动提交版本变更，将 `main` 和 `v<版本>` tag 一起推送，创建附带 pack 与 `SHA256SUMS` 的 GitHub 草稿，上传同一 pack 到既有工坊条目 `3821170924`，成功后公开 Release。工坊标题、描述、封面、可见性保持原状，变更说明写入版本。源码与构建输入随 tag 提供，分发遵循 [LICENSE](../LICENSE)。
+
+仓库管理员需配置两个 Environment：
+
+- `release-approval`：Required reviewers 为 `FlanChanXwO`，允许本人审批，禁用管理员绕过，部署分支仅 `main`。审批 job 无仓库写权限，也不读取 Steam secrets。
+- `release`：部署分支仅 `main`；保存 `STEAM_USERNAME` 和 `STEAM_CONFIG_VDF` 两个 secrets。账号必须拥有游戏及该工坊条目的更新权限，并已接受 Steam Workshop 条款。`STEAM_CONFIG_VDF` 是在可信设备用 Valve 官方 SteamCMD 成功登录后，`config/config.vdf` 文件的单行 Base64；不能使用桌面 Steam 客户端的同名文件，也不要提交或粘贴进 Issue、日志或聊天。它是登录凭据，不是加密后的公开配置。
+
+首次登录 SteamCMD 时按提示输入密码和 Steam Guard，再退出。在该 SteamCMD 目录中，可直接把配置送入 GitHub Secret，避免落盘第二份凭据：
+
+```powershell
+gh secret set STEAM_USERNAME --env release --repo FlanChanXwO/tww3_mod_capacity_cost_control
+[Convert]::ToBase64String([IO.File]::ReadAllBytes((Resolve-Path 'config/config.vdf'))) | gh secret set STEAM_CONFIG_VDF --env release --repo FlanChanXwO/tww3_mod_capacity_cost_control
+```
+
+云端从 Valve 官方地址安装会自行更新的 Linux SteamCMD；登录缓存仅在上传步骤写入临时 runner 的私有文件，结束时删除，不进入 artifact。Steam Guard 要求重新授权或缓存过期时，在可信设备重新登录，再更新 secret；工作流不会自动绕过 Steam Guard。批准后若上传失败，保留 GitHub 草稿，修复凭据后选择 **Re-run failed jobs**：只接受源码与原 tag 完全一致的重试，不移动既有 tag。已公开版本不能覆盖。若审批期间 `main` 已前进，流程会停止，应取消旧运行并从最新 `main` 重新构建和审批。
+
+旧的[发布记录工作流](../.github/workflows/release-record.yml)仅供补登记此前手工上传的历史版本，也需审批；新版本使用上述完整流程。
 

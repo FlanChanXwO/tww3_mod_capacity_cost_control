@@ -111,4 +111,24 @@ Check all five factions: settings, displayed prices and actual deductions, capac
 
 Enable diagnostics in MCT when needed. Logs are written to `tww3_mod_capacity_cost_control_log.txt` in the game root. Report game/mod/MCT versions, faction, capacity item, rate, displayed price, actual deduction, and conflicting mods.
 
-Release order: full local validation → in-game acceptance → Workshop update through the official launcher → [GitHub Release record](../.github/workflows/release-record.yml) with an existing version tag, Workshop ID, and pack SHA256. Distribute corresponding source and build inputs under [LICENSE](../LICENSE).
+`data/project.json` is the single version source. The build embeds its version, Workshop ID and repository URL in `config/metadata.lua`; MCT displays them through its native metadata APIs and the three project link buttons.
+
+Run [Release mod](../.github/workflows/release.yml) on `main`, providing a version such as `1.0.0` without `v`. Actions updates the version for the build, runs the full checks with Python 3.12 and Lua 5.4, and builds with RPFM 5.1.0 and schema commit `57a23a849fcaa805ccf3afe743bf46fd14a1a43c`. Importing this repository's tables requires no game installation. Server startup has a 30-second readiness limit, with failure logs printed by the job. The resulting `release-pack` artifact includes the pack and `SHA256SUMS`.
+
+The workflow then waits at the `release-approval` Environment. Download the artifact, verify the version/checksum and perform the in-game checks before approving **Review deployments**. No remote tag, Release or Steam upload is created before approval. After approval, Actions commits the version, atomically pushes `main` and `v<version>`, creates a GitHub draft with the pack and checksums, uploads that same pack to Workshop item `3821170924`, then publishes the Release. It preserves the existing Workshop title, description, preview and visibility; the change note is the version. Corresponding source and build inputs are available through the tag under [LICENSE](../LICENSE).
+
+Repository administrators must configure:
+
+- `release-approval`: required reviewer `FlanChanXwO`, self-review allowed, administrator bypass disabled, deployments restricted to `main`. This job has no write permission or Steam secrets.
+- `release`: deployments restricted to `main`, with `STEAM_USERNAME` and `STEAM_CONFIG_VDF` secrets. The Steam account must own the game, have permission to update the item and have accepted the Workshop agreement. `STEAM_CONFIG_VDF` is the single-line Base64 encoding of **SteamCMD's** `config/config.vdf` after a successful authenticated login on a trusted device. It is a credential; never commit it or paste it into issues, logs or chats. Do not use the desktop Steam client's configuration.
+
+After the first interactive SteamCMD login (including password and Steam Guard), exit and run from that SteamCMD directory to send the cache directly to GitHub:
+
+```powershell
+gh secret set STEAM_USERNAME --env release --repo FlanChanXwO/tww3_mod_capacity_cost_control
+[Convert]::ToBase64String([IO.File]::ReadAllBytes((Resolve-Path 'config/config.vdf'))) | gh secret set STEAM_CONFIG_VDF --env release --repo FlanChanXwO/tww3_mod_capacity_cost_control
+```
+
+The runner installs Valve's official Linux SteamCMD, which updates itself. The login cache is written privately only during upload and deleted afterward; it is never an artifact. If Steam Guard requires reauthorization or the cache expires, log in again on a trusted device and replace the secret. The workflow does not bypass Steam Guard. An upload failure leaves the GitHub Release as a draft: fix the credentials and **Re-run failed jobs**. Retries must use source identical to the original tag; tags are never moved, and public releases cannot be overwritten. If `main` advances during approval, cancel the old run and rebuild from current `main` for a new approval.
+
+The legacy [Release record](../.github/workflows/release-record.yml) workflow is only for recording historical manual uploads and also requires approval. Use the full workflow for new releases.
