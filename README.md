@@ -10,7 +10,7 @@
 
 ![Game](https://img.shields.io/badge/Total_War-WARHAMMER_III-8b0000?style=flat-square)
 [![License](https://img.shields.io/badge/license-AFPL_v9-blue?style=flat-square)](LICENSE)
-[![GitHub views](https://komarev.com/ghpvc/?username=FlanChanXwO.tww3_mod_capacity_cost_control&label=views&style=flat-square)](https://github.com/FlanChanXwO/tww3_mod_capacity_cost_control)
+[![GitHub views](https://komarev.com/ghpvc/?username=FlanChanXwO-tww3-capacity-cost-control&label=views&style=flat-square)](https://github.com/FlanChanXwO/tww3_mod_capacity_cost_control)
 [![Steam subscribers](https://img.shields.io/steam/subscriptions/3821170924.svg?style=flat-square&logo=steam&label=subscribers)](https://steamcommunity.com/sharedfiles/filedetails/?id=3821170924)
 [![Steam unique visitors](https://img.shields.io/steam/views/3821170924.svg?style=flat-square&logo=steam&label=unique%20visitors)](https://steamcommunity.com/sharedfiles/filedetails/?id=3821170924)
 
