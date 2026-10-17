@@ -1,6 +1,6 @@
 {
   "title": "Unit Capacity Cost Control",
-  "description": "Configurable linear capacity-cost scaling for Nagash, Chaos Dwarfs, Armies of Shang-Yang, Beastmen, and Empire Amethyst units. Applies only to human players.",
+  "description": "Configurable linear capacity-cost scaling for Nagash, Chaos Dwarfs, Armies of Shang-Yang, Beastmen, and Empire Amethyst units. Applies only to players.",
   "sections": {
     "nagash": "Nagash / Undead Legions",
     "chaos_dwarfs": "Chaos Dwarfs / Hell-Forge",
@@ -52,9 +52,7 @@
   "links": {
     "section": "Other",
     "repository": "Contribute",
-    "repository_tooltip": "Open the project repository to contribute improvements.",
-    "issues": "Issue tracker",
-    "issues_tooltip": "Open the issue tracker.",
+    "repository_tooltip": "Open the GitHub repository via Steam’s external-link confirmation page.",
     "workshop": "Steam Workshop",
     "workshop_tooltip": "Open the Steam Workshop page."
   }

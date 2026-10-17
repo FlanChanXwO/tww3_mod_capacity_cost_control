@@ -33,9 +33,13 @@ def prepare_upload(pack: Path, expected_sha256: str, directory: Path, notes: str
     with pack.open("rb") as stream:
         if hashlib.file_digest(stream, "sha256").hexdigest() != expected_sha256:
             raise ValueError("Pack SHA256 differs from the approved build")
+    icon = pack.with_suffix(".png")
+    if not icon.is_file():
+        raise FileNotFoundError(f"Launcher icon is required: {icon}")
     content = directory / "content"
     content.mkdir(parents=True, exist_ok=True)
     shutil.copyfile(pack, content / PACK_NAME)
+    shutil.copyfile(icon, content / Path(PACK_NAME).with_suffix(".png"))
     # 只更新内容和变更说明，保留工坊现有的标题、描述、封面及可见性。
     values = {
         "appid": "1142710",

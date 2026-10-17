@@ -389,7 +389,7 @@ function scenarios.mct_custom_input_validation()
     assert(env.math.huge == nil, "validation must run without math.huge")
     local validators, sections, defaults, dropdowns = {}, {}, {}, {}
     local labels, buttons, section_titles, sorters = {}, {}, {}, {}
-    local link_callbacks, opened_urls = {}, {}
+    local link_callbacks, link_options, link_targets = {}, {}, {}
     local layout_groups, registered_version, workshop_id, github_id
     local function noop() end
     local registration = {set_title = function(_, title)
@@ -400,6 +400,7 @@ function scenarios.mct_custom_input_validation()
         set_workshop_id = function(_, id) workshop_id = id end,
         set_github_id = function(_, id) github_id = id end,
         set_description = noop,
+        get_main_page = function() return {populate_sidebar = noop} end,
         add_new_section = function(_, key)
             sections[#sections + 1] = key
             return {
@@ -408,7 +409,11 @@ function scenarios.mct_custom_input_validation()
             }
         end,
         add_new_option = function(_, key)
-            return {set_assigned_section = noop,
+            local option = {ui_create_option = function(self)
+                    assert_value(self:get_uic_template(), "ui/tww3_mod_capacity_cost_control/action_link", "use native link template")
+                    return {SetContextObject = function(_, context) link_targets[key] = context end}
+                end,
+                set_assigned_section = noop,
                 set_text = function(_, text) labels[key] = text end,
                 set_button_text = function(_, text) buttons[key] = text end,
                 set_callback = function(_, callback) link_callbacks[key] = callback end,
@@ -419,6 +424,8 @@ function scenarios.mct_custom_input_validation()
                     dropdowns[key][#dropdowns[key] + 1] = value
                 end,
                 add_validity_test = function(_, test) validators[key] = test end}
+            link_options[key] = option
+            return option
         end}
     env.get_mct = function()
         return {register_mod = function(_, key)
@@ -426,18 +433,14 @@ function scenarios.mct_custom_input_validation()
             return registration
         end}
     end
-    local link_contexts = {}
+    env.get_vlog = function() return function() end end
+    local contexts = {}
     env.common = {get_context_value = function() return true end,
-        set_context_value = function(context_type, key, url)
-            assert_value(context_type, "CcoScriptObject", "link must use the engine script context")
-            link_contexts[key] = url
-        end,
-        call_context_command = function(context_type, key, command)
-            assert_value(context_type, "CcoScriptObject", "overlay must use the engine script context")
-            assert_value(command, "OpenOverlayToUrl(StringValue, false)", "link must open the Steam overlay")
-            assert(link_contexts[key], "overlay must use the context containing the destination")
-            opened_urls[#opened_urls + 1] = link_contexts[key]
-        end}
+        set_context_value = function(key, url) contexts[key] = url end}
+    env.cco = function(kind, key)
+        assert_value(kind, "CcoScriptObject", "native callback uses a script context")
+        return {key = key, url = contexts[key]}
+    end
     -- MCT settings 没有 campaign core；只允许通过 pack 中的 loadfile 路径加载依赖。
     local mct_env = setmetatable({core = false}, {__index = env})
     mct_env.loadfile = function(path)
@@ -454,21 +457,22 @@ function scenarios.mct_custom_input_validation()
     assert_value(registered_version, metadata.version, "MCT must display the packaged version")
     assert_value(workshop_id, "3821170924", "MCT must link the published Workshop item")
     assert_value(github_id, "FlanChanXwO/tww3_mod_capacity_cost_control", "MCT must link the project repository")
-    for key, url in pairs({project_issues = metadata.github_repository .. "/issues",
-        project_workshop = "https://steamcommunity.com/sharedfiles/filedetails/?id=" .. metadata.workshop_id,
+    assert(link_callbacks.project_issues == nil and labels.project_issues == nil, "issue tracker button must not be registered")
+    for key, url in pairs({project_workshop = "https://steamcommunity.com/sharedfiles/filedetails/?id=" .. metadata.workshop_id,
         project_repository = metadata.github_repository}) do
-        assert(link_callbacks[key], key .. " must have a working link")
-        local opened_count = #opened_urls
+        assert(link_callbacks[key], key .. " must have a diagnostic callback")
+        link_options[key]:ui_create_option({})
+        local target = key == "project_repository"
+            and "https://steamcommunity.com/linkfilter/?u=https%3A%2F%2Fgithub.com%2FFlanChanXwO%2Ftww3_mod_capacity_cost_control" or url
+        assert_value(link_targets[key].url, target, "GitHub uses Steam confirmation; Workshop stays direct")
         link_callbacks[key]()
-        assert_value(#opened_urls, opened_count + 1, "each click must issue an overlay command")
-        assert_value(opened_urls[#opened_urls], url, "link must open its configured destination")
     end
-    for key, title in pairs({project_issues = "问题反馈", project_workshop = "创意工坊", project_repository = "参与贡献"}) do
+    for key, title in pairs({project_workshop = "创意工坊", project_repository = "参与贡献"}) do
         assert(labels[key] == title, key .. ": action label must be localized separately from its button")
         assert_value(buttons[key], title, "action button must use the localized title")
     end
     assert_value(section_titles.links, "其它", "links section title")
-    assert_value(table.concat(sorters.links(), ","), "project_issues,project_workshop,project_repository", "link display order")
+    assert_value(table.concat(sorters.links(), ","), "project_workshop,project_repository", "link display order")
     local order = {"nagash", "chaos_dwarfs", "bhashiva", "beastmen", "amethyst"}
     for i, prefix in ipairs(order) do
         assert_value(sections[i + 2], prefix, "faction registration order must remain unchanged")
@@ -922,6 +926,119 @@ function scenarios.purchase_store()
     end)
     assert_value(other_counts.first, 1, "first purchase does not require prior import")
     assert_value(saved[key].first, 2, "another faction's purchase must remain independent")
+end
+
+function scenarios.logger_uses_mod_id()
+    local text = ""
+    local metadata = assert(loadfile("build/generated/metadata.lua"))()
+    local logger_env = {
+        core = {load_global_script = function() return metadata end},
+        cm = {get_saved_value = function() return true end},
+        get_timestamp = function() return "test-time" end,
+        io = {open = function(path, mode)
+            assert_value(path, metadata.log_file, "keep the existing log destination")
+            assert_value(mode, "a", "append to existing logs")
+            return {
+                write = function(_, value) text = text .. value end,
+                flush = function() end,
+                close = function() end,
+            }
+        end},
+    }
+    setmetatable(logger_env, {__index = env})
+    local logger = load_in_env("src/script/campaign/capacity_cost_control/utils/logger.lua", logger_env)
+    logger.write("test", "message")
+    assert_value(text, "test-time | [tww3_mod_capacity_cost_control] | test: message\n", "mod_id preserves the log prefix")
+end
+
+function scenarios.mct_external_links()
+    local listeners, contexts, logs = {}, {}, {}
+    local buttons, original_populates = {}, 0
+    local holder = {Layout = function() end}
+    local page = {_sidebar = {}}
+    local link_env = {
+        get_vlog = function() return function(message) logs[#logs + 1] = message end end,
+        common = {set_context_value = function(key, value) contexts[key] = value end},
+        cco = function(kind, key)
+            assert_value(kind, "CcoScriptObject", "bind script context to native callback")
+            return {key = key, url = contexts[key]}
+        end,
+        core = {
+            add_listener = function(_, name, event, condition, callback)
+                assert_value(event, "ComponentLClickUp", "diagnostics use the click event")
+                listeners[name] = {condition = condition, callback = callback}
+            end,
+            remove_listener = function(_, name) listeners[name] = nil end,
+            get_or_create_component = function(_, id, template, parent)
+                assert_value(template, "ui/tww3_mod_capacity_cost_control/icon_link", "use native icon callback")
+                assert(parent == holder)
+                local button = {id = id, SetImagePath = function() end, SetTooltipText = function() end, Resize = function() end}
+                function button:SetContextObject(context) self.context = context end
+                buttons[id] = button
+                return button
+            end,
+        },
+        find_uicomponent = function(parent, key)
+            if parent == page._sidebar then
+                assert_value(key, "buttons_holder", "find native sidebar holder")
+                return holder
+            end
+            assert(parent == holder)
+            return buttons[key]
+        end,
+    }
+    setmetatable(link_env, {__index = env})
+    local mod = {
+        get_main_page = function() return page end,
+        get_github_link = function() return "https://github.com/FlanChanXwO/tww3_mod_capacity_cost_control" end,
+        get_workshop_link = function() return "https://steamcommunity.com/sharedfiles/filedetails/?id=3821170924" end,
+    }
+    page.populate_sidebar = function()
+        original_populates = original_populates + 1
+        buttons = {}
+        for _, key in ipairs({"github", "workshop"}) do
+            local button = {}
+            function button:Destroy() self.destroyed = true end
+            buttons["button_" .. key] = button
+            listeners[key .. "_button_clicked"] = {callback = function() error("old command route") end}
+        end
+    end
+    local links = assert(loadfile("src/script/mct/capacity_cost_control/links.lua", "t", link_env))()
+    links.apply(mod)
+    links.apply(mod)
+    for _ = 1, 2 do
+        page:populate_sidebar()
+        for _, key in ipairs({"github", "workshop"}) do
+            local id = "tww3_mod_capacity_cost_control_" .. key .. "_link"
+            assert(buttons["button_" .. key].destroyed, "replace the old icon")
+            local target = key == "github"
+                and "https://steamcommunity.com/linkfilter/?u=https%3A%2F%2Fgithub.com%2FFlanChanXwO%2Ftww3_mod_capacity_cost_control"
+                or mod:get_workshop_link()
+            assert_value(buttons[id].context.url, target, "icons share the action destination policy")
+            assert(not listeners[key .. "_button_clicked"], "remove the old Lua command route")
+            assert(listeners[id].condition({string = id}), "diagnostic matches this icon")
+            assert(not listeners[id].condition({string = "button_" .. key}), "other mod icons do not match")
+            listeners[id].callback()
+        end
+    end
+    assert_value(original_populates, 2, "sidebar must not be wrapped twice")
+    local empty = {}
+    links.configure_option(empty, "", "empty")
+    assert(next(empty) == nil, "empty destinations retain the inactive action")
+    local encoded_context
+    local encoded_option = {
+        ui_create_option = function() return {SetContextObject = function(_, context) encoded_context = context end} end,
+        set_callback = function() end,
+    }
+    links.configure_option(encoded_option, 'https://github.com/owner/repo?q="x"&v=100%#readme', "encoded")
+    encoded_option:ui_create_option({})
+    assert_value(encoded_context.url,
+        "https://steamcommunity.com/linkfilter/?u=https%3A%2F%2Fgithub.com%2Fowner%2Frepo%3Fq%3D%22x%22%26v%3D100%25%23readme",
+        "escape reserved URL bytes so the confirmation page receives exactly one complete destination")
+    local fail_option = {ui_create_option = function() error("engine UI failure") end, set_callback = function() end}
+    links.configure_option(fail_option, "https://example.com", "failure")
+    local ok, err = pcall(fail_option.ui_create_option, fail_option, {})
+    assert(not ok and string.find(err, "engine UI failure", 1, true), "preserve native UI errors")
 end
 
 assert(scenarios[arg[1]], "Unknown scenario")()

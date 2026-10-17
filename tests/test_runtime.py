@@ -37,6 +37,12 @@ class CampaignRuntimeTests(unittest.TestCase):
     def test_mct_custom_input_validation_without_math_huge(self) -> None:
         self.run_scenario("mct_custom_input_validation")
 
+    def test_logger_uses_project_mod_id(self) -> None:
+        self.run_scenario("logger_uses_mod_id")
+
+    def test_mct_icons_use_unique_click_ids_without_duplicate_callbacks(self) -> None:
+        self.run_scenario("mct_external_links")
+
     def test_custom_100_applies_without_math_huge(self) -> None:
         self.run_scenario("custom_100_without_math_huge")
 

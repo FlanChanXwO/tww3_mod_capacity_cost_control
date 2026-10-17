@@ -38,7 +38,7 @@ class BuildOutputTests(unittest.TestCase):
                 text = path.read_text(encoding="utf-8")
             finally:
                 build_mod.CACHE = old_cache
-        self.assertIn('technical_name = "tww3_mod_capacity_cost_control"', text)
+        self.assertIn('mod_id = "tww3_mod_capacity_cost_control"', text)
         self.assertIn('mod_key = "tww3_mod_capacity_cost_control"', text)
         self.assertIn('author = "FlanChanXwO"', text)
 

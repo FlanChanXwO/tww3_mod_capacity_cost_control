@@ -9,9 +9,8 @@
 [English](README.md) · [简体中文](README.zh-CN.md)
 
 ![Game](https://img.shields.io/badge/Total_War-WARHAMMER_III-8b0000?style=flat-square)
-![Lua](https://img.shields.io/badge/runtime-Lua-2c2d72?style=flat-square&logo=lua)
-![Python](https://img.shields.io/badge/build-Python_3.12-3776ab?style=flat-square&logo=python&logoColor=white)
 [![License](https://img.shields.io/badge/license-AFPL_v9-blue?style=flat-square)](LICENSE)
+[![GitHub 访问数](https://komarev.com/ghpvc/?username=FlanChanXwO.tww3_mod_capacity_cost_control&label=views&style=flat-square)](https://github.com/FlanChanXwO/tww3_mod_capacity_cost_control)
 [![Steam 订阅数](https://img.shields.io/steam/subscriptions/3821170924.svg?style=flat-square&logo=steam&label=subscribers)](https://steamcommunity.com/sharedfiles/filedetails/?id=3821170924)
 [![Steam 不重复访问数](https://img.shields.io/steam/views/3821170924.svg?style=flat-square&logo=steam&label=unique%20visitors)](https://steamcommunity.com/sharedfiles/filedetails/?id=3821170924)
 
@@ -19,7 +18,7 @@
 
 </div>
 
-支持**纳迦什、混沌矮人、上阳诸军、野兽人和帝国紫晶兵**，其中野兽人覆盖兵种及三类英雄容量仪式。仅调整人类玩家的费用递增，保留容量购买、解锁、招募和军队容量推进。
+支持**纳迦什、混沌矮人、上阳诸军、野兽人和帝国紫晶兵**，其中野兽人覆盖兵种及三类英雄容量仪式。仅调整玩家的费用递增，保留容量购买、解锁、招募和军队容量推进。
 
 ## 安装
 

@@ -20,7 +20,7 @@ function logger.write(source, message)
     end
     local ok, file = pcall(io.open, metadata.log_file, "a")
     if not ok or not file then return end
-    file:write(timestamp() .. " | [" .. metadata.technical_name .. "] | " .. tostring(source) .. ": " .. tostring(message) .. "\n")
+    file:write(timestamp() .. " | [" .. metadata.mod_id .. "] | " .. tostring(source) .. ": " .. tostring(message) .. "\n")
     file:flush()
     file:close()
 end
