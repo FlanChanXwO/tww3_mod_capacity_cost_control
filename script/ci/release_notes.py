@@ -13,7 +13,7 @@ def release_notes(changelog: Path, version: str) -> str:
         raise ValueError(f"Expected exactly one changelog entry for {version}")
     entry = matches[0].rstrip() + "\n"
     languages = re.search(r"^### 简体中文\n(.+?)^### English\n(.+)", entry, re.MULTILINE | re.DOTALL)
-    if not languages or not all(section.strip() for section in languages.groups()):
+    if not languages or not all(re.search(r"(?m)^- \S", section) for section in languages.groups()):
         raise ValueError("Release notes require nonempty Simplified Chinese and English sections")
     return entry
 
