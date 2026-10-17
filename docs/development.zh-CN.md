@@ -113,7 +113,7 @@ Lua 运行回归需要解释器，跳过的测试不算验证通过。
 
 ## 提交 PR
 
-填写变更点和验证步骤；未测试时说明原因，并完成 PR 模板中的两项清单。
+PR 标题使用 Conventional Commits 前缀，例如 `fix: 修正费用`、`feat(mct): 显示版本`、`chore(release): v1.0.1`。填写变更点和验证步骤；未测试时说明原因，并完成 PR 模板中的两项清单。未指派的 PR 自动指派给 `FlanChanXwO`；非本人提交的就绪 PR 自动请求其审查，保留已有指派和审查选择。GitHub 禁止作者审查自己的 PR，因此本人创建的 PR 跳过 reviewer。
 
 将 PR 正文保存为文件后，可在本地检查：
 
@@ -163,7 +163,7 @@ gh secret set STEAM_USERNAME --env release --repo FlanChanXwO/tww3_mod_capacity_
 [Convert]::ToBase64String([IO.File]::ReadAllBytes((Resolve-Path 'config/config.vdf'))) | gh secret set STEAM_CONFIG_VDF --env release --repo FlanChanXwO/tww3_mod_capacity_cost_control
 ```
 
-云端从 Valve 官方地址安装会自行更新的 Linux SteamCMD；登录缓存仅在上传步骤写入临时 runner 的私有文件，结束时删除，不进入 artifact。缓存不保证永久有效，也不会因存入 GitHub Secret 自动续期。Steam Guard 要求重新授权或缓存过期时，在可信设备重新登录，再更新 secret；工作流不会自动绕过 Steam Guard。批准后若上传失败，保留 GitHub 草稿，修复凭据后选择 **Re-run failed jobs**：只接受源码与原 tag 完全一致的重试，不移动既有 tag。已公开版本不能覆盖。若审批期间 `main` 已前进，流程会停止，应取消旧运行并从最新 `main` 重新构建和审批。
+云端从 Valve 官方地址安装会自行更新的 Linux SteamCMD 到默认 `~/Steam`，缓存写入同目录下的 `config/config.vdf`；登录缓存仅在上传步骤写入临时 runner 的私有文件，结束时删除，不进入 artifact。缓存不保证永久有效，也不会因存入 GitHub Secret 自动续期。Steam Guard 要求重新授权或缓存过期时，在可信设备重新登录，再更新 secret；工作流不会自动绕过 Steam Guard。批准后若上传失败，保留 GitHub 草稿，修复凭据后选择 **Re-run failed jobs**：只接受源码与原 tag 完全一致的重试，不移动既有 tag。若需要修复工作流本身，合并修复后重新调度相同版本；流程只允许恢复尚未公开的草稿，固定原 tag 源码并下载原 pack，对照草稿记录的 SHA256 和校验和文件核验，重新等待审批，不重新打包。已公开版本不能覆盖。若审批期间 `main` 已前进，流程会停止，应取消旧运行并从最新 `main` 重新构建和审批。
 
 旧的[发布记录工作流](../.github/workflows/release-record.yml)仅供补登记此前手工上传的历史版本，也需审批；新版本使用上述完整流程。
 

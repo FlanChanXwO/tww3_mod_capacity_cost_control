@@ -88,7 +88,7 @@ Lua runtime regressions require an interpreter. Skipped tests do not count as ve
 
 ## Pull requests
 
-Describe changes and verification, or explain why testing was not performed, then complete the two checks in the PR template. Validate a saved description locally:
+Use a Conventional Commits title, such as `fix: correct capacity cost`, `feat(mct): show version`, or `chore(release): v1.0.1`. Describe changes and verification, or explain why testing was not performed, then complete the two checks in the PR template. Unassigned PRs are assigned to `FlanChanXwO`; ready PRs from other authors request their review, preserving existing assignments and reviews. GitHub prohibits self-review, so PRs authored by the maintainer skip the reviewer request. Validate a saved description locally:
 
 ```sh
 python script/ci/check_pr_template.py --body-file pr-body.md
@@ -129,6 +129,6 @@ gh secret set STEAM_USERNAME --env release --repo FlanChanXwO/tww3_mod_capacity_
 [Convert]::ToBase64String([IO.File]::ReadAllBytes((Resolve-Path 'config/config.vdf'))) | gh secret set STEAM_CONFIG_VDF --env release --repo FlanChanXwO/tww3_mod_capacity_cost_control
 ```
 
-The runner installs Valve's official Linux SteamCMD, which updates itself. The login cache is written privately only during upload and deleted afterward; it is never an artifact. The cache is not guaranteed to remain valid indefinitely, and storing it as a GitHub Secret does not renew it. If Steam Guard requires reauthorization or the cache expires, log in again on a trusted device and replace the secret. The workflow does not bypass Steam Guard. An upload failure leaves the GitHub Release as a draft: fix the credentials and **Re-run failed jobs**. Retries must use source identical to the original tag; tags are never moved, and public releases cannot be overwritten. If `main` advances during approval, cancel the old run and rebuild from current `main` for a new approval.
+The runner installs Valve's official Linux SteamCMD in its default `~/Steam` directory, with credentials in `config/config.vdf` under that directory; SteamCMD updates itself. The login cache is written privately only during upload and deleted afterward; it is never an artifact. The cache is not guaranteed to remain valid indefinitely, and storing it as a GitHub Secret does not renew it. If Steam Guard requires reauthorization or the cache expires, log in again on a trusted device and replace the secret. The workflow does not bypass Steam Guard. An upload failure leaves the GitHub Release as a draft: fix the credentials and **Re-run failed jobs**. Retries must use source identical to the original tag; tags are never moved, and public releases cannot be overwritten. If the workflow itself needs a fix, merge it and dispatch the same version again. Only an unpublished draft can be restored: use the original tag source and download the original pack, verify its SHA256 against the draft notes and checksum file, then wait for approval again without rebuilding. If `main` advances during approval, cancel the old run and rebuild from current `main` for a new approval.
 
 The legacy [Release record](../.github/workflows/release-record.yml) workflow is only for recording historical manual uploads and also requires approval. Use the full workflow for new releases.
