@@ -63,7 +63,7 @@ sleep() { echo approval >> trace; touch approved; }
         self.icon = self.pack.with_suffix(".png")
         self.icon.write_bytes(b"approved launcher icon")
         self.sha256 = hashlib.sha256(self.pack.read_bytes()).hexdigest()
-        self.notes = '## [1.0.0] - 2026-10-17\n\n### 简体中文\n\n- 显示版本。\n\n### English\n\n- Show the version.\n'
+        self.notes = '## [1.0.0] - 2026-10-17\n\n### 简体中文\n\n#### 新增\n\n- 显示版本。\n\n### English\n\n#### Added\n\n- Show the version.\n'
         self.changelog = self.root / 'CHANGELOG.md'
         self.changelog.write_text('# Changelog\n\n' + self.notes, encoding='utf-8')
         for module in (prepare_release, upload_workshop):
