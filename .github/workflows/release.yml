@@ -97,7 +97,12 @@ jobs:
 
   build:
     needs: prepare
-    runs-on: ubuntu-24.04
+    runs-on: windows-2025
+    defaults:
+      run:
+        shell: bash
+    env:
+      PYTHONUTF8: '1'
     outputs:
       sha256: ${{ steps.pack.outputs.sha256 }}
     steps:
@@ -121,21 +126,35 @@ jobs:
       - name: Install validation tools
         run: |
           python -m pip install -r requirements-dev.txt
-          sudo apt-get update
-          sudo apt-get install -y lua5.4 zstd
+          lua_dir="$(cygpath -u "$RUNNER_TEMP")/lua"
+          mkdir -p "$lua_dir"
+          curl --fail --location https://www.lua.org/ftp/lua-5.4.8.tar.gz -o "$lua_dir/lua.tar.gz"
+          tar -xzf "$lua_dir/lua.tar.gz" -C "$lua_dir"
+          find "$lua_dir/lua-5.4.8/src" -name '*.c' ! -name luac.c -print0 | xargs -0 gcc -O2 -o "$lua_dir/lua54.exe"
+          "$lua_dir/lua54.exe" -v
+          echo "LUA=$(cygpath -w "$lua_dir/lua54.exe")" >> "$GITHUB_ENV"
       - name: Install RPFM 5.1.0
+        shell: pwsh
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          mkdir -p "$RUNNER_TEMP/rpfm"
-          gh release download v5.1.0 --repo Frodo45127/rpfm --pattern 'rpfm-v5.1.0-x86_64-unknown-linux-gnu.tar.zst' --dir "$RUNNER_TEMP/rpfm"
-          tar --zstd -xf "$RUNNER_TEMP/rpfm/"*.tar.zst -C "$RUNNER_TEMP/rpfm"
-          server=$(find "$RUNNER_TEMP/rpfm" -name rpfm_server -type f)
-          test -n "$server"
-          chmod +x "$server"
-          "$server" > "$RUNNER_TEMP/rpfm-server.log" 2>&1 &
+          $rpfmDirectory = Join-Path $env:RUNNER_TEMP 'rpfm'
+          New-Item -ItemType Directory -Path $rpfmDirectory | Out-Null
+          gh release download v5.1.0 --repo Frodo45127/rpfm --pattern 'rpfm-v5.1.0-x86_64-pc-windows-msvc.zip' --dir $rpfmDirectory
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          Expand-Archive -Path "$rpfmDirectory/*.zip" -DestinationPath $rpfmDirectory
+          $servers = @(Get-ChildItem $rpfmDirectory -Recurse -Filter rpfm_server.exe)
+          if ($servers.Count -ne 1) { throw 'Expected one RPFM server executable' }
+          $server = $servers[0]
+          $process = Start-Process -FilePath $server.FullName -WorkingDirectory $server.DirectoryName -WindowStyle Hidden -PassThru -RedirectStandardOutput "$env:RUNNER_TEMP/rpfm-server.log" -RedirectStandardError "$env:RUNNER_TEMP/rpfm-server.err"
           # server 启动是异步的；等待 HTTP 就绪后才建立 MCP session。
-          timeout 30 bash -c 'until curl --silent --fail http://127.0.0.1:45127/version; do sleep 1; done'
+          $ready = $false
+          for ($attempt = 0; $attempt -lt 30; $attempt++) {
+            if ($process.HasExited) { throw 'RPFM server exited before HTTP readiness' }
+            try { Invoke-RestMethod 'http://127.0.0.1:45127/version' -ErrorAction Stop; $ready = $true; break }
+            catch { Start-Sleep -Seconds 1 }
+          }
+          if (-not $ready) { throw 'RPFM server did not become ready within 30 seconds' }
       - name: Install pinned WH3 schema
         run: |
           python - <<'PY'
@@ -151,8 +170,6 @@ jobs:
               directory / 'schema_wh3.ron')
           PY
       - name: Validate and build pack
-        env:
-          LUA: lua5.4
         run: python script/ci/verify.py
       - name: Verify packaged metadata
         run: |
@@ -183,7 +200,7 @@ jobs:
           if-no-files-found: error
       - name: Show RPFM failure log
         if: failure()
-        run: cat "$RUNNER_TEMP/rpfm-server.log" 2>/dev/null || true
+        run: cat "$RUNNER_TEMP/rpfm-server.log" "$RUNNER_TEMP/rpfm-server.err" 2>/dev/null || true
 
   approve_release:
     name: Approve final release publication
