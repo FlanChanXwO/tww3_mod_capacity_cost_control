@@ -4,9 +4,20 @@
 
 This changelog follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+[1.0.3]: https://github.com/FlanChanXwO/tww3_mod_capacity_cost_control/compare/v1.0.2...v1.0.3
 [1.0.2]: https://github.com/FlanChanXwO/tww3_mod_capacity_cost_control/compare/v1.0.1...v1.0.2
 [1.0.1]: https://github.com/FlanChanXwO/tww3_mod_capacity_cost_control/compare/v1.0.0...v1.0.1
 [1.0.0]: https://github.com/FlanChanXwO/tww3_mod_capacity_cost_control/releases/tag/v1.0.0
+
+## [1.0.3] - 2026-10-19
+
+### 简体中文
+
+- 修复进入游戏时模组可能报错并被禁用、无法正常使用的问题。
+
+### English
+
+- Fixed an issue where the mod could display an error and be disabled when entering the game.
 
 ## [1.0.2] - 2026-10-17
 
