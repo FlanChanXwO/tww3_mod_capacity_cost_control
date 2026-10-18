@@ -40,7 +40,7 @@ class CampaignRuntimeTests(unittest.TestCase):
     def test_logger_uses_project_mod_id(self) -> None:
         self.run_scenario("logger_uses_mod_id")
 
-    def test_mct_icons_use_unique_click_ids_without_duplicate_callbacks(self) -> None:
+    def test_mct_native_links_bind_destinations_without_duplicate_wrapping(self) -> None:
         self.run_scenario("mct_external_links")
 
     def test_custom_100_applies_without_math_huge(self) -> None:

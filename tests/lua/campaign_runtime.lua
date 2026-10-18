@@ -389,7 +389,7 @@ function scenarios.mct_custom_input_validation()
     assert(env.math.huge == nil, "validation must run without math.huge")
     local validators, sections, defaults, dropdowns = {}, {}, {}, {}
     local labels, buttons, section_titles, sorters = {}, {}, {}, {}
-    local link_callbacks, link_options, link_targets = {}, {}, {}
+    local link_options, link_targets = {}, {}
     local layout_groups, registered_version, workshop_id, github_id
     local function noop() end
     local registration = {set_title = function(_, title)
@@ -416,7 +416,6 @@ function scenarios.mct_custom_input_validation()
                 set_assigned_section = noop,
                 set_text = function(_, text) labels[key] = text end,
                 set_button_text = function(_, text) buttons[key] = text end,
-                set_callback = function(_, callback) link_callbacks[key] = callback end,
                 set_tooltip_text = noop,
                 set_default_value = function(_, value) defaults[key] = value end,
                 add_dropdown_value = function(_, value)
@@ -433,7 +432,6 @@ function scenarios.mct_custom_input_validation()
             return registration
         end}
     end
-    env.get_vlog = function() return function() end end
     local contexts = {}
     env.common = {get_context_value = function() return true end,
         set_context_value = function(key, url) contexts[key] = url end}
@@ -457,15 +455,13 @@ function scenarios.mct_custom_input_validation()
     assert_value(registered_version, metadata.version, "MCT must display the packaged version")
     assert_value(workshop_id, "3821170924", "MCT must link the published Workshop item")
     assert_value(github_id, "FlanChanXwO/tww3_mod_capacity_cost_control", "MCT must link the project repository")
-    assert(link_callbacks.project_issues == nil and labels.project_issues == nil, "issue tracker button must not be registered")
+    assert(labels.project_issues == nil, "issue tracker button must not be registered")
     for key, url in pairs({project_workshop = "https://steamcommunity.com/sharedfiles/filedetails/?id=" .. metadata.workshop_id,
         project_repository = metadata.github_repository}) do
-        assert(link_callbacks[key], key .. " must have a diagnostic callback")
         link_options[key]:ui_create_option({})
         local target = key == "project_repository"
             and "https://steamcommunity.com/linkfilter/?u=https%3A%2F%2Fgithub.com%2FFlanChanXwO%2Ftww3_mod_capacity_cost_control" or url
         assert_value(link_targets[key].url, target, "GitHub uses Steam confirmation; Workshop stays direct")
-        link_callbacks[key]()
     end
     for key, title in pairs({project_workshop = "创意工坊", project_repository = "参与贡献"}) do
         assert(labels[key] == title, key .. ": action label must be localized separately from its button")
@@ -952,22 +948,17 @@ function scenarios.logger_uses_mod_id()
 end
 
 function scenarios.mct_external_links()
-    local listeners, contexts, logs = {}, {}, {}
+    local listeners, contexts = {}, {}
     local buttons, original_populates = {}, 0
     local holder = {Layout = function() end}
     local page = {_sidebar = {}}
     local link_env = {
-        get_vlog = function() return function(message) logs[#logs + 1] = message end end,
         common = {set_context_value = function(key, value) contexts[key] = value end},
         cco = function(kind, key)
             assert_value(kind, "CcoScriptObject", "bind script context to native callback")
             return {key = key, url = contexts[key]}
         end,
         core = {
-            add_listener = function(_, name, event, condition, callback)
-                assert_value(event, "ComponentLClickUp", "diagnostics use the click event")
-                listeners[name] = {condition = condition, callback = callback}
-            end,
             remove_listener = function(_, name) listeners[name] = nil end,
             get_or_create_component = function(_, id, template, parent)
                 assert_value(template, "ui/tww3_mod_capacity_cost_control/icon_link", "use native icon callback")
@@ -1016,9 +1007,6 @@ function scenarios.mct_external_links()
                 or mod:get_workshop_link()
             assert_value(buttons[id].context.url, target, "icons share the action destination policy")
             assert(not listeners[key .. "_button_clicked"], "remove the old Lua command route")
-            assert(listeners[id].condition({string = id}), "diagnostic matches this icon")
-            assert(not listeners[id].condition({string = "button_" .. key}), "other mod icons do not match")
-            listeners[id].callback()
         end
     end
     assert_value(original_populates, 2, "sidebar must not be wrapped twice")
@@ -1028,14 +1016,13 @@ function scenarios.mct_external_links()
     local encoded_context
     local encoded_option = {
         ui_create_option = function() return {SetContextObject = function(_, context) encoded_context = context end} end,
-        set_callback = function() end,
     }
     links.configure_option(encoded_option, 'https://github.com/owner/repo?q="x"&v=100%#readme', "encoded")
     encoded_option:ui_create_option({})
     assert_value(encoded_context.url,
         "https://steamcommunity.com/linkfilter/?u=https%3A%2F%2Fgithub.com%2Fowner%2Frepo%3Fq%3D%22x%22%26v%3D100%25%23readme",
         "escape reserved URL bytes so the confirmation page receives exactly one complete destination")
-    local fail_option = {ui_create_option = function() error("engine UI failure") end, set_callback = function() end}
+    local fail_option = {ui_create_option = function() error("engine UI failure") end}
     links.configure_option(fail_option, "https://example.com", "failure")
     local ok, err = pcall(fail_option.ui_create_option, fail_option, {})
     assert(not ok and string.find(err, "engine UI failure", 1, true), "preserve native UI errors")

@@ -1,6 +1,5 @@
--- 由原生控件执行外链命令，Lua 只绑定目标与诊断监听。
+-- 由原生控件执行外链命令，Lua 只绑定目标。
 local links = {}
-local log = get_vlog("[capacity_cost_control.links]")
 local template_root = "ui/tww3_mod_capacity_cost_control/"
 
 local function bind(button, url, key)
@@ -14,7 +13,6 @@ local function bind(button, url, key)
     end
     common.set_context_value(key, target)
     button:SetContextObject(cco("CcoScriptObject", key))
-    log("native link bound: " .. key .. " -> " .. target)
 end
 
 function links.configure_option(option, url, key)
@@ -26,9 +24,6 @@ function links.configure_option(option, url, key)
         bind(button, url, "tww3_mod_capacity_cost_control_" .. key)
         return button
     end
-    option:set_callback(function()
-        log("native action clicked: " .. key .. " -> " .. url .. "; browser opening is not confirmed")
-    end)
 end
 
 function links.apply(mct_mod, repository_tooltip)
@@ -50,10 +45,6 @@ function links.apply(mct_mod, repository_tooltip)
                 button:SetTooltipText(key == "github" and repository_tooltip or mct_mod["get_" .. key .. "_link"](mct_mod), true)
                 button:Resize(32, 32)
                 bind(button, mct_mod["get_" .. key .. "_link"](mct_mod), id)
-                core:remove_listener(id)
-                core:add_listener(id, "ComponentLClickUp",
-                    function(context) return context.string == id end,
-                    function() log("native icon clicked: " .. key .. "; browser opening is not confirmed") end, true)
             end
         end
         holder:Layout()
