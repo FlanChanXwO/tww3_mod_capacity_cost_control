@@ -12,26 +12,18 @@ This changelog follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) 
 
 ### 简体中文
 
-#### 变更
-
-- 项目元数据字段统一使用 `mod_id`，保留原有模组标识与日志前缀。
-
 #### 移除
 
 - 移除设置页的“问题反馈”按钮，保留创意工坊与参与贡献入口。
 
 #### 修复
 
-- 本地构建及工坊上传包含与 pack 同名的 PNG，修复订阅版启动器模组图标缺失；发布产物同时校验 pack 与图标。
-- 将纳迦什相关设置中的“不死军团”更正为“亡灵军团”，统一使用“玩家”称呼。
-- 修复 MCT 首页 Steam 和 GitHub 图标的点击绑定，使用模组专属控件 ID，并在切页或重开时重新绑定，避免一次点击重复打开。
-- GitHub 图标和参与贡献入口经 Steam 官方外链确认页打开仓库，工坊入口保持直达。
+- 修复订阅版在模组启动器中不显示图标的问题。
+- 将纳迦什设置中的“不死军团”更正为“亡灵军团”，并调整部分中英文设置文案。
+- 修复 MCT 首页 Steam 和 GitHub 图标的点击问题，避免一次点击重复打开页面，切页或重开后仍可使用。
+- 修复 GitHub 图标和“参与贡献”按钮无法打开仓库的问题，点击后需在 Steam 外链确认页继续访问；创意工坊入口仍直接打开。
 
 ### English
-
-#### Changed
-
-- Rename the project metadata field to `mod_id`, preserving the mod identity and log prefix.
 
 #### Removed
 
@@ -39,42 +31,32 @@ This changelog follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) 
 
 #### Fixed
 
-- Include a matching PNG in local builds and Workshop uploads to restore the subscribed mod icon in the launcher; checksum both the pack and icon.
-- Correct the Chinese name of the Legions of Undeath in the Nagash settings and simplify player terminology in both languages.
-- Fix click bindings for the MCT home page Steam and GitHub icons using mod-specific component IDs, rebinding after page recreation and avoiding duplicate navigation.
-- Open the GitHub icon and Contribute destination through Steam’s official external-link confirmation page; keep Workshop direct.
+- Fix the missing launcher icon for the subscribed mod.
+- Correct the Chinese name of the Legions of Undeath in the Nagash settings and adjust some Chinese and English settings text.
+- Fix the MCT home page Steam and GitHub icons so a single click does not open duplicate pages and the icons continue to work after switching or reopening pages.
+- Fix the GitHub icon and Contribute button failing to open the repository. Continue through Steam's external-link confirmation page to visit GitHub; Workshop still opens directly.
 
 ## [1.0.1] - 2026-10-17
 
 ### 简体中文
 
-#### 新增
-
-- 加强链接跳转回归检查，确认点击会使用目标地址调用 Steam Overlay 打开命令。
-
 #### 变更
 
-- 更新订阅版的 MCT 项目元数据，显示当前版本以及可点击的 Steam 创意工坊和 GitHub 图标。
-- 通过 GitHub Actions 构建、审批并更新工坊，GitHub Release 与工坊改动说明共用本条双语日志。
+- 在 MCT 中显示模组版本，并提供可点击的 Steam 创意工坊和 GitHub 图标。
 
 #### 修复
 
-- 补齐问题反馈、创意工坊、参与贡献按钮的目标地址。
+- 补齐“问题反馈”“创意工坊”和“参与贡献”按钮的链接地址。
 
 ### English
 
-#### Added
-
-- Strengthen link regression checks to verify that clicks invoke the Steam Overlay command with the intended destination.
-
 #### Changed
 
-- Update the subscribed mod's MCT metadata to display the current version and clickable Steam Workshop and GitHub icons.
-- Build, approve, and update the Workshop through GitHub Actions, using this bilingual entry for both GitHub Release and Workshop change notes.
+- Show the mod version in MCT with clickable Steam Workshop and GitHub icons.
 
 #### Fixed
 
-- Supply the destination URLs for the issue tracker, Workshop, and contribution buttons.
+- Add the missing links for the Issue tracker, Workshop, and Contribute buttons.
 
 ## [1.0.0] - 2026-10-17
 
@@ -82,20 +64,20 @@ This changelog follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) 
 
 #### 新增
 
-- 首个正式版本，支持纳迦什、混沌矮人、上阳诸军、野兽人及帝国紫晶兵的容量购买费用设置；野兽人包含兵种和三类英雄容量。
-- 各派系可在 MCT 中独立选择 0%、5%、10% 或自定义正百分比，按基础费用线性递增；关闭覆盖后恢复原版计价。
-- 设置变更后按已记录的购买次数重新计算费用，保留正常购买、解锁、招募和军队容量进度。
-- 自动导入旧版 MCT 设置及紫晶、上阳诸军、野兽人的购买计数，保留已有新版记录；无法恢复的历史从新基线开始记录。
-- MCT 显示当前版本、Steam 工坊和 GitHub 链接，并提供问题反馈、创意工坊及参与贡献入口。
-- 提供可选紫晶面板诊断，以及带云端审批、pack 校验和自动工坊上传的发布流程。
+- 首个正式版本，可调整纳迦什、混沌矮人、上阳诸军、野兽人及帝国紫晶兵的容量购买费用；野兽人支持兵种和三类英雄容量。
+- 在 MCT 中分别设置各派系的费用增幅：0%、5%、10% 或自定义正百分比。每次购买按基础费用增加固定金额，关闭覆盖后恢复原版计价。
+- 更改设置后，费用会按已有购买次数重新计算，保留购买、解锁、招募和军队容量进度。
+- 沿用可读取的旧版设置，以及紫晶兵、上阳诸军和野兽人的容量购买记录，保留已有新版记录；无法恢复的历史从零开始记录。
+- 在 MCT 中显示模组版本，并提供问题反馈、创意工坊及参与贡献入口。
+- 可开启紫晶兵面板诊断日志，帮助排查问题。
 
 ### English
 
 #### Added
 
-- First stable release, with configurable capacity purchase costs for Nagash, Chaos Dwarfs, Armies of Shang-Yang, Beastmen, and Empire Amethyst units. Beastmen coverage includes unit and three hero capacity rituals.
-- Configure each faction independently in MCT: 0%, 5%, 10%, or a custom positive percentage, with linear growth from the base cost. Disabling an override restores vanilla pricing.
-- Recalculate costs from recorded purchases when settings change, preserving normal purchases, unlocks, recruitment, and army capacity progression.
-- Import older MCT settings and Amethyst, Shang-Yang, and Beastmen purchase counts while preserving newer records. Unrecoverable history starts from a new baseline.
-- Display the current version, Steam Workshop and GitHub links in MCT, with links for feedback, the Workshop, and contributions.
-- Include optional Amethyst panel diagnostics and a release workflow with cloud approval, pack checksums, and automated Workshop uploads.
+- First stable release, with adjustable capacity purchase costs for Nagash, Chaos Dwarfs, Armies of Shang-Yang, Beastmen, and Empire Amethyst units. Beastmen support includes unit and three hero capacity types.
+- Set each faction's cost increase in MCT to 0%, 5%, 10%, or a custom positive percentage. Each purchase adds a fixed amount based on the base cost. Disabling an override restores vanilla pricing.
+- Changing settings recalculates costs from previous purchases while preserving purchases, unlocks, recruitment, and army capacity progress.
+- Carry over readable older settings and capacity purchase records for Amethyst units, Armies of Shang-Yang, and Beastmen while preserving existing newer records. History that cannot be recovered starts from zero.
+- Show the mod version in MCT with links for feedback, the Workshop, and contributions.
+- Offer optional Amethyst panel diagnostic logs to help investigate problems.
