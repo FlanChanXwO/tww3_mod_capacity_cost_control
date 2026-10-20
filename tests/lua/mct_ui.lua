@@ -67,13 +67,12 @@ for _,mode in ipairs({"frontend","campaign"}) do
         function option:set_assigned_section(section) sections[section]._options[key]=self end
         function option:set_default_value(value) if selected[key]==nil then selected[key]=value end end
         function option:add_validity_test(test) self.validate=test end
-        function option:set_callback(callback) self.callback=callback end
         function option:ui_create_option(box) return core:get_or_create_component(key,self:get_uic_template(),box) end
         registered[key]=option; return option
     end
     local runtime={core=core,find_uicomponent=component,
         common={get_context_value=function() return true end,set_context_value=function(key,value) contexts[key]=value end},
-        cco=function(_,key) return {url=contexts[key]} end,get_vlog=function() return function() end end,
+        cco=function(_,key) return {url=contexts[key]} end,get_vlog=false,
         get_mct=function() return {register_mod=function() return mod end} end}
     local env=setmetatable(runtime,{__index=_G})
     -- MCT GLib 将入口绑定到 core:get_env()，入口自行 loadfile 的辅助脚本不会继承它。
@@ -100,10 +99,9 @@ for _,mode in ipairs({"frontend","campaign"}) do
         for _,key in ipairs({"github","workshop"}) do
             local id="tww3_mod_capacity_cost_control_"..key.."_link"
             assert(component(holder,id).context.url,"icon context after reopen")
-            assert(listeners[id].condition({string=id}))
-            listeners[id].callback()
+            assert(listeners[id]==nil,"native links do not need Lua click listeners")
         end
-        registered.project_repository.callback()
+        assert(registered.project_repository.callback==nil,"native actions need no Lua callback")
         assert(selected.nagash_base_cost_percent=="0","reopening must retain settings")
     end
 end

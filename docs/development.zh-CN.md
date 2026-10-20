@@ -137,7 +137,7 @@ Get-FileHash 'build/tww3_mod_capacity_cost_control.pack' -Algorithm SHA256
 Get-FileHash (Join-Path $gameData 'tww3_mod_capacity_cost_control.pack') -Algorithm SHA256
 ```
 
-本地启动器条目使用与 pack 同名的 PNG 作为预览图，构建会从仓库 `logo.png` 生成该文件，安装时需一起复制。当前本地链接诊断写入 MCT 的 `!groove_log.txt`，前缀为 `[capacity_cost_control.links]`；命令正常返回不代表浏览器已经打开。
+本地启动器条目使用与 pack 同名的 PNG 作为预览图，构建会从仓库 `logo.png` 生成该文件，安装时需一起复制。
 
 停用冲突包后检查：
 

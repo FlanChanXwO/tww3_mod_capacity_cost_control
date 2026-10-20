@@ -12,8 +12,7 @@ local layout = loadfile("script/mct/capacity_cost_control/layout.lua")
 layout = layout and layout() or {}
 local project_links = assert(loadfile("script/mct/capacity_cost_control/links.lua"))()
 -- loadfile 的全局环境在战役中不包含完整接口，显式交给延后执行的 UI 回调。
-local runtime = {core = core, find_uicomponent = find_uicomponent, common = common, cco = cco,
-    log = get_vlog("[capacity_cost_control.links]")}
+local runtime = {core = core, find_uicomponent = find_uicomponent, common = common, cco = cco}
 
 -- MCT 用 loadfile 加载 settings 文件，package.path 可能不含 script/campaign/
 -- 所以同样用 loadfile 而非 require 加载 i18 数据。

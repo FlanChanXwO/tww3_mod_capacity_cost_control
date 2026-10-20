@@ -61,11 +61,11 @@ Campaign 模块通过 `core:load_global_script("capacity_cost_control.config.set
 
 设置入口为 `src/script/mct/settings/tww3_mod_capacity_cost_control_mct.lua`，通过 `loadfile` 加载常量、生成元数据、双语文本和布局模块。
 
-设置入口向 `layout` 与 `links` 显式传入 `core`、`find_uicomponent`、`common`、`cco` 和日志接口；通过 `loadfile` 加载的辅助模块及延迟 UI 回调不再依赖战役中缺失的全局接口。
+设置入口向 `layout` 与 `links` 显式传入 `core`、`find_uicomponent`、`common` 和 `cco`；通过 `loadfile` 加载的辅助模块及延迟 UI 回调不再依赖战役中缺失的全局接口。
 
 `src/script/mct/capacity_cost_control/layout.lua` 替换当前设置页的 `populate`，复用 MCT 控件：左列按常量顺序放五个派系，右列放诊断和其它设置。链接按创意工坊、参与贡献排序。地址留空时，链接按钮只显示提示，不注册跳转回调。
 
-`src/script/mct/capacity_cost_control/links.lua` 为按钮绑定独立的 `CcoScriptObject` URL；`src/ui/tww3_mod_capacity_cost_control/` 中的原生控件模板通过 `ContextCommandLeftClick` 执行 `OpenOverlayToUrl(StringValue, true)`。Lua 点击监听仅记录诊断，不再转发 URL 命令。两个模板分别保留游戏文本按钮和 MCT 图标按钮的外观。首页渲染后替换本项目图标、移除旧监听，并使用模组专属 ID；MCT 切页会销毁旧控件，重开后重新绑定。
+`src/script/mct/capacity_cost_control/links.lua` 为按钮绑定独立的 `CcoScriptObject` URL；`src/ui/tww3_mod_capacity_cost_control/` 中的原生控件模板通过 `ContextCommandLeftClick` 执行 `OpenOverlayToUrl(StringValue, true)`。两个模板分别保留游戏文本按钮和 MCT 图标按钮的外观。首页渲染后替换本项目图标、移除旧监听，并使用模组专属 ID；MCT 切页会销毁旧控件，重开后重新绑定。
 
 原生控件的创意工坊链接已获用户确认可用；GitHub 直达在两种布尔参数下均无导航。本机引擎 `OpenOverlayToUrl` 的静态调用链对 `steamcommunity.com`、`www.totalwar.com` 有专门分支，其余地址经过额外允许列表检查。目前未找到可供 Lua 使用的注册接口。因此仅将 GitHub 导航目标转换为 Steam 官方 `linkfilter/?u=` 确认页，并逐字节编码目标 URL；工坊地址与项目元数据保持原始值。用户需要在确认页点击继续访问 GitHub。用户已在游戏中确认此路径可正常访问 GitHub。
 
