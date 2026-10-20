@@ -61,6 +61,8 @@ Check local vanilla scripts, DB, and the installed MCT before changing engine ca
 
 - Campaign modules use `core:load_global_script`; MCT settings use explicit `loadfile` paths and check `get_mct()` first.
 - `links.lua` binds destinations to native controls through `CcoScriptObject`; `ContextCommandLeftClick` handles navigation. GitHub navigation uses Steam’s official `linkfilter/?u=` confirmation page with the full destination percent-encoded because the engine checks external sites. Workshop stays direct and metadata retains the original GitHub URL. Both icons and settings buttons share this policy. Users must confirm on the Steam page; the user has confirmed in-game navigation works.
+- The checked MCT `GLib.LoadModules` calls `GLib.LoadModule`, which binds the settings entrypoint to `core:get_env()`. Helpers loaded directly through `loadfile` do not inherit that environment, so they receive their UI runtime interfaces explicitly from the entrypoint.
+- Nagash progress wraps the vanilla listener with a per-purchase expenditure proxy. The checked vanilla callback is in `tests/lua/fixtures/nagash_vanilla.lua`; game updates require checking the listener structure, tracked-use timing at `RitualAboutToStartEvent`, and callback interface usage.
 - WH3 does not support the fourth `string.find` argument or provide `math.huge`.
 - Zero-delay callbacks run synchronously. Use a positive delay to read results after vanilla listeners, and cover both listener orders.
 - Keep integer rounding and float32 compensation intact. Purchase history and army capacity are separate state.

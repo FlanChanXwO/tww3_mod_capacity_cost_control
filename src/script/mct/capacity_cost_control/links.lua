@@ -2,7 +2,8 @@
 local links = {}
 local template_root = "ui/tww3_mod_capacity_cost_control/"
 
-local function bind(button, url, key)
+local function bind(button, url, key, runtime)
+    local common, cco = runtime.common, runtime.cco
     if not url or url == "" then return end
     local target = url
     if url:match("^https://github%.com/") then
@@ -15,18 +16,19 @@ local function bind(button, url, key)
     button:SetContextObject(cco("CcoScriptObject", key))
 end
 
-function links.configure_option(option, url, key)
+function links.configure_option(option, url, key, runtime)
     if not url or url == "" then return end
     option.get_uic_template = function() return template_root .. "action_link" end
     local create_option = option.ui_create_option
     option.ui_create_option = function(self, parent)
         local button = create_option(self, parent)
-        bind(button, url, "tww3_mod_capacity_cost_control_" .. key)
+        bind(button, url, "tww3_mod_capacity_cost_control_" .. key, runtime)
         return button
     end
 end
 
-function links.apply(mct_mod, repository_tooltip)
+function links.apply(mct_mod, repository_tooltip, runtime)
+    local core, find_uicomponent = runtime.core, runtime.find_uicomponent
     local page = mct_mod:get_main_page()
     if page._tww3_external_links then return end
     page._tww3_external_links = true
@@ -44,7 +46,7 @@ function links.apply(mct_mod, repository_tooltip)
                 button:SetImagePath("ui/mct/icons/" .. key .. ".png")
                 button:SetTooltipText(key == "github" and repository_tooltip or mct_mod["get_" .. key .. "_link"](mct_mod), true)
                 button:Resize(32, 32)
-                bind(button, mct_mod["get_" .. key .. "_link"](mct_mod), id)
+                bind(button, mct_mod["get_" .. key .. "_link"](mct_mod), id, runtime)
             end
         end
         holder:Layout()

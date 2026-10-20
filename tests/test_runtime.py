@@ -31,6 +31,30 @@ class CampaignRuntimeTests(unittest.TestCase):
         )
         self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
 
+    def test_base_cost_multipliers(self) -> None:
+        for faction in ("chaos_dwarfs", "nagash", "amethyst", "bhashiva"):
+            with self.subTest(faction=faction):
+                self.run_scenario("base_cost_" + faction)
+        self.run_beastmen_scenario("base_cost_percent")
+        self.run_scenario("percent_settings")
+
+    def test_chaos_dwarfs_free_cost_labels(self) -> None:
+        self.run_scenario("chaos_dwarfs_free_cost_labels")
+
+    def test_nagash_progress_uses_vanilla_cost_independently(self) -> None:
+        result = subprocess.run(
+            [LUA, "tests/lua/nagash_sigils.lua"], cwd=ROOT,
+            capture_output=True, text=True, encoding="utf-8",
+        )
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+
+    def test_real_mct_pages_render_without_global_campaign_interfaces(self) -> None:
+        result = subprocess.run(
+            [LUA, "tests/lua/mct_ui.lua"], cwd=ROOT,
+            capture_output=True, text=True, encoding="utf-8",
+        )
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+
     def test_campaign_environment_applies_no_scaling(self) -> None:
         self.run_scenario("campaign_environment")
 

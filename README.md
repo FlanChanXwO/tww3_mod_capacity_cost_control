@@ -31,6 +31,10 @@ Controls capacity cost increases for **Nagash, Chaos Dwarfs, Armies of Shang-Yan
 
 Each faction has an independent override: **0% by default**, 5%, 10%, or a positive custom percentage. Growth is linear from the base cost: at 10%, a base cost of 100 becomes `100 → 110 → 120`. Campaign setting changes recalculate prices using recorded purchases.
 
+Each faction also has a **base cost multiplier**, defaulting to **100%**. Set it to **0%** to make every capacity purchase free, including subsequent purchases. Cost is `base cost × base multiplier × purchase-growth multiplier`, retaining the existing growth caps. Multipliers accept finite, non-negative numbers, including decimals, without an artificial upper limit.
+
+Nagash has an independent **Necromancy progress multiplier**, defaulting to **100%** of the full vanilla cost for that purchase, regardless of base-cost or custom-growth settings. A base multiplier of 0% with progress at 100% allows free capacity with vanilla progress rewards; progress at 0% contributes nothing. Vanilla sigil thresholds and rewards are retained. Disabling Nagash's override restores progress based on actual spending.
+
 Existing saves import MCT settings and Amethyst, Shang-Yang, and Beastmen purchase counts from the previous mod, preserving any newer records. Unrecoverable history starts from a new baseline. Amethyst and Shang-Yang purchases rely on this mod's saved counters. To restore vanilla pricing, turn off their overrides in MCT; removing the pack can lose that history. After migration, save to a new file to keep the original.
 
 For feedback, include the faction, capacity item, MCT settings, displayed price, and actual deduction. Optional diagnostics write `tww3_mod_capacity_cost_control_log.txt` in the game root.

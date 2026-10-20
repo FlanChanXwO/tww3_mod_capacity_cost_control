@@ -4,6 +4,7 @@
 local chaos_dwarfs = { id = "chaos_dwarfs" }
 local constants = core:load_global_script("capacity_cost_control.config.constants")
 local native = constants.chaos_dwarfs
+local config = core:load_global_script("capacity_cost_control.config.settings")
 
 local original_modify = nil
 local current_setting = nil
@@ -19,6 +20,31 @@ local function rate_percent(setting)
     return rate * 100
 end
 
+local function refresh_free_labels()
+    -- 原版零支出不生成 transaction，ContextTextLabel 会留下模板中的 99；等原版重绘后补零。
+    cm:callback(function()
+        if not current_setting or rate_percent(current_setting) == nil
+            or config.resolve_base_multiplier(current_setting) ~= 0 then return end
+        local faction = cm:get_faction(cm:get_local_faction_name())
+        if not faction or faction:is_null_interface() or not faction:is_human()
+            or faction:culture() ~= hellforge.culture_key then return end
+        local panel = find_uicomponent(core:get_ui_root(), "hellforge_panel_main")
+        if not panel or not panel:Visible() then return end
+        local function visit(component, ritual_key)
+            local ritual = component:GetContextObject("CcoCampaignRitual")
+            ritual_key = ritual and ritual:Call("RitualContext.Key") or ritual_key
+            if component:Id() == "template_cost" and ritual_key
+                and chaos_dwarfs:handles_ritual(ritual_key) then
+                component:SetStateText("0")
+            end
+            for i = 0, component:ChildCount() - 1 do
+                visit(UIComponent(component:Find(i)), ritual_key)
+            end
+        end
+        visit(panel)
+    end, 0.1)
+end
+
 function chaos_dwarfs:handles_ritual(ritual_key)
     return string.find(ritual_key, native.ritual_prefix, 1) == 1
 end
@@ -30,6 +56,9 @@ function chaos_dwarfs:install_hook()
     end
     if original_modify then return end
     original_modify = hellforge.modify_ritual_cap_cost
+    core:add_listener("tww3_mod_capacity_cost_control_hellforge_prices", "PanelOpenedCampaign",
+        function(context) return context.string == "hellforge_panel_main" end,
+        refresh_free_labels, true)
 
     hellforge.modify_ritual_cap_cost = function(self_inner, ritual_key, faction_interface, bundle_key)
         local desired = current_setting and rate_percent(current_setting) or nil
@@ -40,6 +69,7 @@ function chaos_dwarfs:install_hook()
         end
 
         local effect_key = ritual_key .. constants.cost_effect_suffix
+        local base_multiplier = config.resolve_base_multiplier(current_setting)
         trace("modify: " .. ritual_key .. " desired=" .. tostring(desired))
 
         -- 读当前 bundle（与 vanilla get_faction_bundle_by_key 相同方式）
@@ -62,7 +92,7 @@ function chaos_dwarfs:install_hook()
                 local old_val = eff:value()
                 local eff_key = eff:key()
                 if eff_key == effect_key then
-                    effects_to_new_values[eff_key] = old_val + desired
+                    effects_to_new_values[eff_key] = base_multiplier == 0 and -100 or old_val + desired * base_multiplier
                 else
                     effects_to_new_values[eff_key] = old_val
                 end
@@ -78,14 +108,18 @@ function chaos_dwarfs:install_hook()
             if effects_to_new_values[ne_key] then
                 bundle:set_effect_value(ne, effects_to_new_values[ne_key])
             elseif effect_key == ne_key then
-                bundle:set_effect_value(ne, desired)
+                local modifier = desired
+                if base_multiplier == 0 then modifier = -100
+                elseif base_multiplier ~= 1 then modifier = (100 + desired) * base_multiplier - 100 end
+                bundle:set_effect_value(ne, modifier)
             else
-                bundle:set_effect_value(ne, 0)
+                bundle:set_effect_value(ne, (base_multiplier - 1) * 100)
             end
         end
 
         bundle:set_duration(0)
         cm:apply_custom_effect_bundle_to_faction(bundle, faction_interface)
+        refresh_free_labels()
         trace("modify: done " .. ritual_key)
     end
     trace("install_hook: patched")
@@ -96,8 +130,10 @@ function chaos_dwarfs:refresh(setting)
     current_setting = setting
     self:install_hook()
     if not hellforge then return end
+    refresh_free_labels()
 
     local desired = rate_percent(setting)
+    local base_multiplier = desired ~= nil and config.resolve_base_multiplier(setting) or 1
     if desired == nil and previous_rate == nil then return end
 
     for _, faction_key in ipairs(cm:get_human_factions_of_culture(hellforge.culture_key)) do
@@ -124,7 +160,10 @@ function chaos_dwarfs:refresh(setting)
                     increment = effect:key() == native.warmachine_effect
                         and hellforge.warmachine_ritual_cost_mod_increment or hellforge.unit_ritual_cost_mod_increment
                 end
-                bundle:set_effect_value(effect, (counts[ritual_key] or 0) * increment)
+                local modifier = (counts[ritual_key] or 0) * increment
+                if base_multiplier == 0 then modifier = -100
+                elseif base_multiplier ~= 1 then modifier = (100 + modifier) * base_multiplier - 100 end
+                bundle:set_effect_value(effect, modifier)
             end
             bundle:set_duration(0)
             cm:apply_custom_effect_bundle_to_faction(bundle, faction)

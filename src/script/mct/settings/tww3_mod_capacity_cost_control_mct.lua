@@ -11,6 +11,8 @@ local mct_mod = mct:register_mod(metadata.mod_key)
 local layout = loadfile("script/mct/capacity_cost_control/layout.lua")
 layout = layout and layout() or {}
 local project_links = assert(loadfile("script/mct/capacity_cost_control/links.lua"))()
+-- loadfile 的全局环境在战役中不包含完整接口，显式交给延后执行的 UI 回调。
+local runtime = {core = core, find_uicomponent = find_uicomponent, common = common, cco = cco}
 
 -- MCT 用 loadfile 加载 settings 文件，package.path 可能不含 script/campaign/
 -- 所以同样用 loadfile 而非 require 加载 i18 数据。
@@ -60,6 +62,22 @@ links_section:set_option_sort_function(function()
     return {"project_workshop", "project_repository"}
 end)
 
+local function add_percent_option(section_key, prefix, key, default)
+    local option = mct_mod:add_new_option(prefix .. "_" .. key, "text_input")
+    local text = options[key] or {}
+    option:set_assigned_section(section_key)
+    option:set_text(text.text or (key == "base_cost_percent" and "Base cost multiplier (%)" or "Necromancy progress multiplier (%)"))
+    option:set_tooltip_text(text.tooltip or "Enter a finite, non-negative percentage. Defaults to 100%.")
+    option:set_default_value(tostring(default))
+    option:add_validity_test(function(text)
+        local value = tonumber(text)
+        if not value or value < 0 or value - value ~= 0 then
+            return false, validation.percent_invalid or "Enter a finite number greater than or equal to 0."
+        end
+        return true
+    end)
+end
+
 local function add_faction_section(section_key, prefix)
     local section = mct_mod:add_new_section(section_key)
     section:set_localised_text(sections[section_key] or section_key)
@@ -69,6 +87,11 @@ local function add_faction_section(section_key, prefix)
     enabled:set_text(options.enabled and options.enabled.text or "Enable override")
     enabled:set_tooltip_text(options.enabled and options.enabled.tooltip or "")
     enabled:set_default_value(defaults.enabled)
+
+    add_percent_option(section_key, prefix, "base_cost_percent", defaults.base_cost_percent)
+    if prefix == "nagash" then
+        add_percent_option(section_key, prefix, "necromancy_progress_percent", defaults.necromancy_progress_percent)
+    end
 
     local mode = mct_mod:add_new_option(prefix .. "_mode", "dropdown")
     mode:set_assigned_section(section_key)
@@ -104,7 +127,7 @@ local function add_link_option(key, url, text, tooltip)
     if option.set_button_text then option:set_button_text(text or key) end
     if option.set_tooltip_text then option:set_tooltip_text(tooltip or "") end
     if url and url ~= "" then
-        project_links.configure_option(option, url, key)
+        project_links.configure_option(option, url, key, runtime)
     end
 end
 
@@ -117,8 +140,8 @@ local repository = metadata.github_repository or ""
 local workshop_id = metadata.workshop_id or ""
 add_link_option("project_workshop", workshop_id ~= "" and ("https://steamcommunity.com/sharedfiles/filedetails/?id=" .. workshop_id) or "", links.workshop or "Steam Workshop", links.workshop_tooltip)
 add_link_option("project_repository", repository, links.repository or "Contribute", links.repository_tooltip)
-project_links.apply(mct_mod, links.repository_tooltip)
+project_links.apply(mct_mod, links.repository_tooltip, runtime)
 
 if layout.apply then
-    layout.apply(mct_mod, constants.faction_order, constants.other_sections)
+    layout.apply(mct_mod, constants.faction_order, constants.other_sections, runtime)
 end

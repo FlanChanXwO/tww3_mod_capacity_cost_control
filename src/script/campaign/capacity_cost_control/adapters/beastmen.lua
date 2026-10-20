@@ -75,7 +75,12 @@ function beastmen:refresh(setting)
                     local native_effect = ritual.key .. constants.cost_effect_suffix
                     -- 同一原版效果用相反值抵消，避免巨大复利费用乘接近零的比例丢失精度。
                     bundle:add_effect(native_effect, constants.effect_scope, -(modifiers[native_effect] or 0))
-                    local desired = ritual.base_cost * (1 + rate * counts[ritual.key])
+                    local base_multiplier = config.resolve_base_multiplier(setting)
+                    local desired = 0
+                    if base_multiplier ~= 0 then
+                        desired = ritual.base_cost * (1 + rate * counts[ritual.key])
+                        if base_multiplier ~= 1 then desired = desired * base_multiplier end
+                    end
                     bundle:add_effect(ritual.effect_key, constants.effect_scope,
                         scaling.calculate_cost_modifier(ritual.base_cost, desired))
                 end

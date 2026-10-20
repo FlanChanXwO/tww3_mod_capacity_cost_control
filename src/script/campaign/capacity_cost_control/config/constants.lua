@@ -19,6 +19,8 @@ return {
         enabled = true,
         mode = "no_scaling",
         custom_percent = 1,
+        base_cost_percent = 100,
+        necromancy_progress_percent = 100,
         debug_logging = false,
     },
     legacy = {

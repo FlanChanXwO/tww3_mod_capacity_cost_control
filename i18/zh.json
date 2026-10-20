@@ -20,6 +20,14 @@
     "custom": {
       "text": "自定义递增 (%)",
       "tooltip": "仅在自定义模式下生效。请输入大于 0 的有限数字。"
+    },
+    "base_cost_percent": {
+      "text": "基础费用倍率 (%)",
+      "tooltip": "仅在启用覆盖时生效。100% 保留原基础费用，0% 使所有容量购买免费。接受非负有限数字，可含小数。"
+    },
+    "necromancy_progress_percent": {
+      "text": "亡灵术进度倍率 (%)",
+      "tooltip": "以本次容量购买的完整原版费用计算进度，不受基础费用倍率或自定义递增影响。默认 100%，0% 不贡献进度。"
     }
   },
   "dropdown_values": {
@@ -41,7 +49,8 @@
     }
   },
   "validation": {
-    "custom_invalid": "请输入大于 0 的有限数字。"
+    "custom_invalid": "请输入大于 0 的有限数字。",
+    "percent_invalid": "请输入大于或等于 0 的有限数字。"
   },
   "debug": {
     "text": "启用诊断",

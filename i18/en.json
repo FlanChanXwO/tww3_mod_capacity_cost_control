@@ -20,6 +20,14 @@
     "custom": {
       "text": "Custom scaling (%)",
       "tooltip": "Used only in Custom mode. Enter a finite number greater than 0."
+    },
+    "base_cost_percent": {
+      "text": "Base cost multiplier (%)",
+      "tooltip": "Used while override is enabled. 100% retains the base cost; 0% makes all capacity purchases free. Accepts finite, non-negative numbers, including decimals."
+    },
+    "necromancy_progress_percent": {
+      "text": "Necromancy progress multiplier (%)",
+      "tooltip": "Progress uses the full vanilla cost of this capacity purchase, independently of base cost and custom scaling settings. Defaults to 100%; 0% contributes no progress."
     }
   },
   "dropdown_values": {
@@ -41,7 +49,8 @@
     }
   },
   "validation": {
-    "custom_invalid": "Enter a finite number greater than 0."
+    "custom_invalid": "Enter a finite number greater than 0.",
+    "percent_invalid": "Enter a finite number greater than or equal to 0."
   },
   "debug": {
     "text": "Enable diagnostics",

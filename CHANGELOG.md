@@ -4,10 +4,37 @@
 
 This changelog follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+[1.1.0]: https://github.com/FlanChanXwO/tww3_mod_capacity_cost_control/compare/v1.0.3...v1.1.0
 [1.0.3]: https://github.com/FlanChanXwO/tww3_mod_capacity_cost_control/compare/v1.0.2...v1.0.3
 [1.0.2]: https://github.com/FlanChanXwO/tww3_mod_capacity_cost_control/compare/v1.0.1...v1.0.2
 [1.0.1]: https://github.com/FlanChanXwO/tww3_mod_capacity_cost_control/compare/v1.0.0...v1.0.1
 [1.0.0]: https://github.com/FlanChanXwO/tww3_mod_capacity_cost_control/releases/tag/v1.0.0
+
+## [1.1.0] - 2026-10-20
+
+### 简体中文
+
+#### 新增
+
+- 五个支持派系均可在 MCT 中独立设置基础费用倍率，默认 100%；设为 0% 后，所有容量购买持续免费，不受后续费用增长影响。支持非负有限小数。
+- 纳迦什新增独立的亡灵术进度倍率，按该次购买的原版费用计算贡献，不受玩家基础费用倍率和购买增长设置影响。免费购买仍可获得原版进度，设为 0% 则不贡献进度；保留原版门槛和符印奖励规则。
+
+#### 修复
+
+- 修复战役中打开 MCT 时设置页面无法正常显示的问题，保留现有两列布局和链接功能。
+- 修复混沌矮人免费购买时界面残留显示 99 的问题，打开面板、购买和设置刷新后显示 0。
+
+### English
+
+#### Added
+
+- Add an independent base cost multiplier in MCT for each of the five supported factions. The default is 100%; setting it to 0% keeps all capacity purchases free regardless of later cost growth. Non-negative finite decimals are supported.
+- Add an independent Necromancy progress multiplier for Nagash. Each purchase contributes progress based on its vanilla cost, independently of player base cost and purchase growth settings. Free purchases can still grant vanilla progress, while 0% grants no contribution. Vanilla thresholds and sigil reward rules are preserved.
+
+#### Fixed
+
+- Fix the MCT settings page failing to display during a campaign, preserving the existing two-column layout and links.
+- Fix Chaos Dwarf free purchases displaying the placeholder 99. Capacity prices now display 0 after opening the panel, purchasing, or refreshing settings.
 
 ## [1.0.3] - 2026-10-19
 
