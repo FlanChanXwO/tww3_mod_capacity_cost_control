@@ -294,5 +294,26 @@ function scenarios.initial_disabled()
     equal(cost(player, unit), 600, "first enable must include imported and disabled purchases")
 end
 
+function scenarios.base_cost_percent()
+    seed(player,unit,49.65)
+    player._capacity[unit.key]=3
+    boot()
+    for _,percent in ipairs({0,100,1000,12.5}) do
+        options.beastmen_base_cost_percent=tostring(percent)
+        change("no_scaling")
+        equal(cost(player,unit),math.floor(unit.base_cost*percent/100),"Beastmen base cost")
+        purchase(player,unit)
+        equal(cost(player,unit),math.floor(unit.base_cost*percent/100),"Beastmen next purchase")
+    end
+    options.beastmen_base_cost_percent="0"
+    change("custom",true,"1000"); purchase(player,unit)
+    equal(cost(player,unit),0,"free Beastmen ignores growth")
+    equal(player._capacity[unit.key],8,"free purchases add capacity")
+    purchase(ai,unit)
+    assert(cost(ai,unit)>0,"AI is unaffected by zero base")
+    change("no_scaling",false)
+    assert(cost(player,unit)>0,"disabled restores compound price")
+end
+
 assert(scenarios[arg[1]], "Unknown scenario")()
 print("PASS " .. arg[1])

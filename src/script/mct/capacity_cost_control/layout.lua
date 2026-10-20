@@ -3,7 +3,8 @@
 -- 仅调整当前设置页的展示，不负责选项注册、保存或费用计算。
 local layout = {}
 
-function layout.apply(mct_mod, left_sections, right_sections)
+function layout.apply(mct_mod, left_sections, right_sections, runtime)
+    local core, find_uicomponent = runtime.core, runtime.find_uicomponent
     local page = mct_mod:get_first_settings_page()
     if not page then return end
     if page._tww3_fixed_layout then return end

@@ -70,7 +70,8 @@ Python 构建通过 `script/build/rpfm_mcp.py` 连接 RPFM。
 
 修改接口前，核对本机原版脚本、DB 和已安装的 `groovy_mct.pack`，确认调用者、加载环境、参数与事件顺序。
 
-- Campaign 用 `core:load_global_script`，MCT settings 用 `loadfile`，调用前检查 `get_mct()`。
+- Campaign 用 `core:load_global_script`，MCT settings 调用前检查 `get_mct()`。已核对的 MCT `GLib.LoadModules` 经 `GLib.LoadModule` 将设置入口绑定到 `core:get_env()`；入口自行 `loadfile` 加载的辅助模块不会自动继承该环境，UI 回调使用设置入口显式传入的运行接口。
+- 纳迦什亡灵术进度通过原版监听器的本次支出代理调整，`tests/lua/fixtures/nagash_vanilla.lua` 保存核对过的原版累计回调。更新游戏后需核对监听器记录结构、购买次数在 `RitualAboutToStartEvent` 时的含义与原版回调使用的接口。
 - MCT 外链由 `links.lua` 绑定到原生控件的 `CcoScriptObject`，通过 `ContextCommandLeftClick` 执行导航。GitHub 直达受引擎外站检查影响，导航时转换为 Steam 官方 `linkfilter/?u=` 确认页，目标 URL 完整百分号编码；工坊保持直达，元数据保留原始 GitHub 地址。首页图标和设置按钮共用此规则。用户需在 Steam 页面确认继续；用户已在游戏中确认跳转可用。
 - WH3 禁用 `string.find` 第四参数，且未提供 `math.huge`。
 - 零延迟回调同步执行；读取原版更新后的值使用正延迟，并测试两种监听顺序。
@@ -96,7 +97,7 @@ Python 构建通过 `script/build/rpfm_mcp.py` 连接 RPFM。
 
 | 检查 | 位置 |
 |------|------|
-| 费用、计数、存读档、AI、无 MCT 和军队容量 | `tests/test_runtime.py`、`tests/lua/` |
+| 基础倍率、亡灵术进度、MCT 实际绘制、计数、存读档、AI、无 MCT 和军队容量 | `tests/test_runtime.py`、`tests/lua/` |
 | DB、bundle 与身份生成 | `tests/test_build_outputs.py` |
 | WH3 安全契约 | `tests/test_source_contracts.py` |
 | PR 正文、Issue 标签与指派、Release 登记 | `script/ci/tests/` |

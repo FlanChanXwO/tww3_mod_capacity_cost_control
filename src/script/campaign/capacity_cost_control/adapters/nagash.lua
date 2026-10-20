@@ -4,6 +4,7 @@
 local definition = core:load_global_script("capacity_cost_control.shared.generated_data").nagash
 local constants = core:load_global_script("capacity_cost_control.config.constants")
 local cost_math = core:load_global_script("capacity_cost_control.utils.cost_math")
+local sigils = core:load_global_script("capacity_cost_control.adapters.nagash_sigils")
 
 local adapter = {
     id = definition.id,
@@ -22,6 +23,7 @@ function adapter:handles_ritual(ritual_key)
 end
 
 function adapter:refresh(setting)
+    sigils.install(self.ritual_lookup, self.faction_key)
     local trace_module = core:load_global_script("capacity_cost_control.utils.logger")
     local function trace(message)
         trace_module.write("[wh3_ccc] " .. self.id .. ": " .. message)
@@ -66,7 +68,8 @@ function adapter:refresh(setting)
             ritual.max_increases,
             uses,
             desired_rate,
-            ritual.base_cost
+            ritual.base_cost,
+            config.resolve_base_multiplier(setting)
         )
 
         trace("refresh: modifier=" .. tostring(modifier) .. " uses=" .. tostring(uses) .. " rate=" .. tostring(desired_rate))

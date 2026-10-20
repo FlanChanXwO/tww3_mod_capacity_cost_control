@@ -35,11 +35,17 @@ Campaign 模块通过 `core:load_global_script("capacity_cost_control.config.set
 
 | 适配器 | 费用来源与处理 | 购买记录 |
 |--------|----------------|----------|
-| `nagash.lua` | 保留原版 DB 递增，用 post modifier 调整到目标费用 | 读取原版 `get_tracked_cost_uses` |
+| `nagash.lua` | 保留原版 DB 递增，用 post modifier 调整到目标费用；`nagash_sigils.lua` 调整亡灵术进度贡献 | 读取原版 `get_tracked_cost_uses` |
 | `chaos_dwarfs.lua` | hook `hellforge.modify_ritual_cap_cost`，复用原版费用 bundle | 设置变化时读取原版容量 bundle 重算 |
 | `beastmen.lua` | 保留原版复利效果，在独立 bundle 中抵消后应用线性费率 | 首次按可核实的复利记录恢复，之后保存成功购买次数 |
 | `amethyst.lua` | 四项仪式的 DB 自动递增归零，通过 `pricing` 直接计价 | 独立监听购买并存档，首次导入可读的原版次数 |
 | `shangyang.lua` | 兵种和军队容量仪式的 DB 自动递增归零，复用 `pricing` | 独立保存次数；军队项目同时从已有容量恢复并同步容量效果 |
+
+五个派系的基础费用倍率默认 `100%`，此值不增加基础缩放运算；`0%` 使用精确免费修正。其余值在既有增长倍率及上限计算之后缩放目标费用，即 `基础费用 × 基础倍率 × 购买增长倍率`，费用取整与 float32 补偿保持原规则。混沌矮人从当前费用效果折算为 `(100 + 增长修正) × 基础倍率 - 100`，不复制基础费用表。
+
+混沌矮人原版价格控件通过支出 transaction 更新文字，零费用缺少该上下文时会残留模板占位值 `99`。适配器在面板打开、设置刷新和购买后延迟补零，仅修改本地玩家启用 `0%` 覆盖时的容量价格文字；付费价格仍由原版更新，不覆盖整份原版 UI 文件。
+
+纳迦什独立的亡灵术进度倍率默认 `100%`。`nagash_sigils` 包装 `core.event_listeners.RitualAboutToStartEvent` 中已注册的原版 `BlackPyramid_RitualCompletedEvent_UnitCapSigils` 回调，只将本次支出替换为完整原版费用乘进度倍率的等价值，复用原版门槛、符印及状态写入。费用基准使用原版费率、上限与当前购买次数，和玩家费用设置无关；免费购买即使没有支出接口也能贡献进度。AI、无 MCT、关闭覆盖和列表之外的仪式直接调用原回调，不新增存档字段。
 
 `shared/pricing` 接收记录和次数，`utils/cost_math` 处理整数取整与 float32 边界。纳迦什、紫晶和上阳诸军按原版费率与最大递增次数限制目标费用。
 
@@ -54,6 +60,8 @@ Campaign 模块通过 `core:load_global_script("capacity_cost_control.config.set
 ## MCT 与诊断
 
 设置入口为 `src/script/mct/settings/tww3_mod_capacity_cost_control_mct.lua`，通过 `loadfile` 加载常量、生成元数据、双语文本和布局模块。
+
+设置入口向 `layout` 与 `links` 显式传入 `core`、`find_uicomponent`、`common`、`cco` 和日志接口；通过 `loadfile` 加载的辅助模块及延迟 UI 回调不再依赖战役中缺失的全局接口。
 
 `src/script/mct/capacity_cost_control/layout.lua` 替换当前设置页的 `populate`，复用 MCT 控件：左列按常量顺序放五个派系，右列放诊断和其它设置。链接按创意工坊、参与贡献排序。地址留空时，链接按钮只显示提示，不注册跳转回调。
 

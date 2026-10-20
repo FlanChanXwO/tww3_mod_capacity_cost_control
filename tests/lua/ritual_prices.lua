@@ -29,19 +29,19 @@ end}
 local scaling = assert(loadfile("src/script/campaign/capacity_cost_control/utils/cost_math.lua", "t", env))()
 local observed = ((1 / (1 + f32(0.15) * 3)) - 1) * 100
 assert(math.abs(unwrap(observed) - (-31.03448677063)) < 1e-10, "float32 model must match the game trace")
-local function price(base, rate, cap, uses, desired, discount)
-    local modifier = scaling.calculate_post_modifier(f32(rate), f32(cap), f32(uses), f32(desired), f32(base))
+local function price(base, rate, cap, uses, desired, discount, base_multiplier)
+    local modifier = scaling.calculate_post_modifier(f32(rate), f32(cap), f32(uses), f32(desired), f32(base), base_multiplier)
     local vanilla = math.floor(unwrap(f32(base) * (1 + f32(rate) * f32(math.min(uses, cap)))))
     return math.floor(unwrap(f32(vanilla) * (1 + modifier / 100) * f32(discount or 1)))
 end
 
-local function beastmen_price(base, uses, desired, native, discount, cap)
+local function beastmen_price(base, uses, desired, native, discount, cap, base_multiplier)
     -- 原版效果与独立 bundle 中的同键相反值先相加，消除大数除法。
     local combined = f32(native) + f32(-native)
     assert(unwrap(combined) == 0, "native compound modifier must cancel exactly")
     local multiplier = 1 + f32(desired) * f32(uses)
     if cap and multiplier > cap then multiplier = f32(cap) end
-    local modifier = scaling.calculate_cost_modifier(f32(base), f32(base) * multiplier)
+    local modifier = scaling.calculate_cost_modifier(f32(base), f32(base) * multiplier * (base_multiplier or 1))
     return math.floor(unwrap(f32(base) * (1 + combined / 100) * (1 + modifier / 100) * f32(discount)))
 end
 
@@ -75,6 +75,30 @@ for faction, definition in pairs(data) do
                     assert(actual == expected, faction .. " " .. ritual.key .. " uses=" .. uses
                         .. " rate=" .. percent .. " discount=" .. discount
                         .. ": expected " .. expected .. ", got " .. actual)
+                end
+            end
+        end
+    end
+end
+for faction,definition in pairs(data) do
+    for _,ritual in ipairs(definition.rituals) do
+        for _,base_percent in ipairs({0,100,1000,12.5}) do
+            for _,uses in ipairs({0,3,25,200}) do
+                for _,discount in ipairs({1,0.9,0.75}) do
+                    local growth=100+10*uses
+                    if definition.cost_model~="beastmen" then
+                        growth=math.min(growth,100+ritual.vanilla_rate*100*ritual.max_increases)
+                    end
+                    local expected=math.floor(ritual.base_cost*growth*base_percent/10000*discount)
+                    local actual
+                    if definition.cost_model=="beastmen" then
+                        actual=beastmen_price(ritual.base_cost,uses,0.1,ritual.vanilla_rate*1000*(1.1^uses-1),discount,nil,base_percent/100)
+                    elseif definition.cost_model=="amethyst" or definition.cost_model=="bhashiva" then
+                        actual=beastmen_price(ritual.base_cost,uses,0.1,0,discount,1+ritual.vanilla_rate*ritual.max_increases,base_percent/100)
+                    else
+                        actual=price(ritual.base_cost,ritual.vanilla_rate,ritual.max_increases,uses,0.1,discount,base_percent/100)
+                    end
+                    assert(actual==expected,faction.." scaled float32 cost: "..ritual.key.." base="..base_percent.." uses="..uses.." expected="..expected.." got="..actual)
                 end
             end
         end

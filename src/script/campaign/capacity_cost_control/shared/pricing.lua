@@ -5,12 +5,17 @@ local pricing = {}
 local constants = core:load_global_script("capacity_cost_control.config.constants")
 local scaling = core:load_global_script("capacity_cost_control.utils.cost_math")
 
-function pricing.apply(bundle, records, counts, rate)
+function pricing.apply(bundle, records, counts, rate, base_multiplier)
+    local scale = rate ~= nil and (base_multiplier or 1) or 1
     for _, record in ipairs(records) do
         local uses = counts[record.key] or 0
         local applied_rate = rate or record.vanilla_rate
         local multiplier = math.min(1 + applied_rate * uses, 1 + record.vanilla_rate * record.max_increases)
-        local desired = record.base_cost * multiplier
+        local desired = 0
+        if scale ~= 0 then
+            desired = record.base_cost * multiplier
+            if scale ~= 1 then desired = desired * scale end
+        end
         bundle:add_effect(record.effect_key, constants.effect_scope,
             scaling.calculate_cost_modifier(record.base_cost, desired))
     end

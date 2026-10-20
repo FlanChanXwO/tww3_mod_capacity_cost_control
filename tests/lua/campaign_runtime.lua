@@ -323,6 +323,7 @@ function scenarios.amethyst_history()
 end
 
 function scenarios.amethyst_without_mct()
+    options.amethyst_base_cost_percent="0"
     local _, _, _, cost, buy = amethyst_setup(true, true)
     for i, expected in ipairs({3250, 3000, 1750, 1500}) do
         assert_value(cost(i), expected, "without MCT must keep vanilla prices")
@@ -332,6 +333,7 @@ function scenarios.amethyst_without_mct()
 end
 
 function scenarios.amethyst_ai()
+    options.amethyst_base_cost_percent="0"
     local _, _, _, cost, buy = amethyst_setup(false, false)
     for i, expected in ipairs({3250, 3000, 1750, 1500}) do
         assert_value(cost(i), expected, "AI must ignore player settings and keep vanilla prices")
@@ -341,6 +343,7 @@ function scenarios.amethyst_ai()
 end
 
 function scenarios.amethyst_initial_disabled()
+    options.amethyst_base_cost_percent="0"
     local _, _, _, cost, buy = amethyst_setup(true, false, true)
     assert_value(cost(1), 3250, "starting disabled must recover the old vanilla price")
     buy(1)
@@ -480,6 +483,7 @@ function scenarios.mct_custom_input_validation()
         assert(defaults[prefix .. "_enabled"] == true, "override must default to enabled")
         assert_value(defaults[prefix .. "_mode"], "no_scaling", "mode default must remain 0%")
         assert_value(defaults[prefix .. "_custom"], "1", "custom default must remain a text value")
+        assert_value(defaults[prefix .. "_base_cost_percent"], "100", "base multiplier default")
         assert_value(table.concat(dropdowns[prefix .. "_mode"], ","), "no_scaling,light,medium,custom",
             "all pricing modes must be registered in the same order")
     end
@@ -491,12 +495,13 @@ function scenarios.mct_custom_input_validation()
         for _, text in ipairs({"1", "100", "7.5", "0.5"}) do
             assert(validate(text) == true, key .. " must accept " .. text)
         end
-        for _, text in ipairs({"-5", "-0.5", "0", "", "abc", "1e9999", "-1e9999"}) do
+        assert(validate("0") == (key:match("_custom$") == nil), key .. " zero validation")
+        for _, text in ipairs({"-5", "-0.5", "", "abc", "1e9999", "-1e9999"}) do
             local valid, message = validate(text)
             assert(valid == false and type(message) == "string", key .. " must reject " .. text)
         end
     end
-    assert_value(count, 5, "all five custom inputs must use the validated callback")
+    assert_value(count, 11, "all percentage inputs must use validation")
 end
 
 function scenarios.custom_100_without_math_huge()
@@ -565,6 +570,7 @@ function scenarios.existing_campaign()
 end
 
 function scenarios.without_mct()
+    options.chaos_dwarfs_base_cost_percent="0"
     env.get_mct = nil
     boot()
     purchase(ritual_keys[1])
@@ -573,6 +579,7 @@ function scenarios.without_mct()
 end
 
 function scenarios.initial_disabled()
+    options.chaos_dwarfs_base_cost_percent="0"
     options.chaos_dwarfs_enabled = false
     bundles[cap_key] = new_bundle(cap_key, {[ritual_keys[1]] = 2})
     local original_bundle = new_bundle(cost_key, {[ritual_keys[1] .. "_cost_mod"] = 50})
@@ -845,9 +852,9 @@ local function bhashiva_vanilla_prices(human, without_mct, disabled)
     assert_value(army_capacity(), 3, "original army capacity must continue")
 end
 
-function scenarios.bhashiva_without_mct() bhashiva_vanilla_prices(true, true, false) end
-function scenarios.bhashiva_ai() bhashiva_vanilla_prices(false, false, false) end
-function scenarios.bhashiva_initial_disabled() bhashiva_vanilla_prices(true, false, true) end
+function scenarios.bhashiva_without_mct() options.bhashiva_base_cost_percent="0"; bhashiva_vanilla_prices(true, true, false) end
+function scenarios.bhashiva_ai() options.bhashiva_base_cost_percent="0"; bhashiva_vanilla_prices(false, false, false) end
+function scenarios.bhashiva_initial_disabled() options.bhashiva_base_cost_percent="0"; bhashiva_vanilla_prices(true, false, true) end
 
 function scenarios.legacy_migration()
     local data = core:load_global_script("capacity_cost_control.shared.generated_data")
@@ -987,6 +994,7 @@ function scenarios.mct_external_links()
             return buttons[key]
         end,
     }
+    link_env.log = link_env.get_vlog()
     setmetatable(link_env, {__index = env})
     local mod = {
         get_main_page = function() return page end,
@@ -1004,8 +1012,8 @@ function scenarios.mct_external_links()
         end
     end
     local links = assert(loadfile("src/script/mct/capacity_cost_control/links.lua", "t", link_env))()
-    links.apply(mod)
-    links.apply(mod)
+    links.apply(mod, nil, link_env)
+    links.apply(mod, nil, link_env)
     for _ = 1, 2 do
         page:populate_sidebar()
         for _, key in ipairs({"github", "workshop"}) do
@@ -1023,22 +1031,181 @@ function scenarios.mct_external_links()
     end
     assert_value(original_populates, 2, "sidebar must not be wrapped twice")
     local empty = {}
-    links.configure_option(empty, "", "empty")
+    links.configure_option(empty, "", "empty", link_env)
     assert(next(empty) == nil, "empty destinations retain the inactive action")
     local encoded_context
     local encoded_option = {
         ui_create_option = function() return {SetContextObject = function(_, context) encoded_context = context end} end,
         set_callback = function() end,
     }
-    links.configure_option(encoded_option, 'https://github.com/owner/repo?q="x"&v=100%#readme', "encoded")
+    links.configure_option(encoded_option, 'https://github.com/owner/repo?q="x"&v=100%#readme', "encoded", link_env)
     encoded_option:ui_create_option({})
     assert_value(encoded_context.url,
         "https://steamcommunity.com/linkfilter/?u=https%3A%2F%2Fgithub.com%2Fowner%2Frepo%3Fq%3D%22x%22%26v%3D100%25%23readme",
         "escape reserved URL bytes so the confirmation page receives exactly one complete destination")
     local fail_option = {ui_create_option = function() error("engine UI failure") end, set_callback = function() end}
-    links.configure_option(fail_option, "https://example.com", "failure")
+    links.configure_option(fail_option, "https://example.com", "failure", link_env)
     local ok, err = pcall(fail_option.ui_create_option, fail_option, {})
     assert(not ok and string.find(err, "engine UI failure", 1, true), "preserve native UI errors")
+end
+
+
+function scenarios.chaos_dwarfs_free_cost_labels()
+    local function node(id, children, ritual_key)
+        local result = {_children = children or {}, text = "99"}
+        function result:Id() return id end
+        function result:Visible() return true end
+        function result:ChildCount() return #self._children end
+        function result:Find(i) return self._children[i + 1] end
+        function result:SetStateText(value) self.text = value end
+        function result:GetContextObject(kind)
+            if kind == "CcoCampaignRitual" and ritual_key then
+                return {Call = function(_, expression)
+                    assert_value(expression, "RitualContext.Key", "read the native ritual context")
+                    return ritual_key
+                end}
+            end
+        end
+        return result
+    end
+    -- 原版 hellforge_panel_unit_caps_tab.twui.xml 的价格默认 99；零支出没有 transaction 来改写文字。
+    local free, unrelated, progression = node("template_cost"), node("template_cost"), node("progression_cost")
+    local row = node("template_unit_entries", {free, progression}, ritual_keys[1])
+    local panel = node("hellforge_panel_main", {row, node("other", {unrelated}, "other_ritual")})
+    ui_root = {_panel = panel}
+    options.chaos_dwarfs_base_cost_percent = "0"
+    boot()
+    fire("PanelOpenedCampaign", {string = "hellforge_panel_main"}); flush_callbacks()
+    assert_value(free.text, "0", "free capacity displays zero instead of the native placeholder")
+    assert_value(unrelated.text, "99", "other rituals retain native text")
+    assert_value(progression.text, "99", "manufactory progression is not a capacity price")
+    for opening = 1, 2 do
+        free.text = "99"
+        fire("PanelOpenedCampaign", {string = "hellforge_panel_main"}); flush_callbacks()
+        assert_value(free.text, "0", "reopening resets the native zero-cost placeholder")
+    end
+    purchase(ritual_keys[1]); free.text = "99"; flush_callbacks()
+    assert_value(free.text, "0", "purchase refresh retains zero label")
+    assert_value(get_value(cost_key, ritual_keys[1] .. "_cost_mod"), -100, "actual purchase remains free")
+    for _, value in ipairs({"100", "1000"}) do
+        options.chaos_dwarfs_base_cost_percent = value
+        free.text = "250" -- 非零交易仍由原版 ContextTextLabel 更新。
+        fire("MctOptionSettingFinalized", {mod = function() return mct_mod end}); flush_callbacks()
+        assert_value(free.text, "250", "paid prices remain under native control")
+    end
+    options.chaos_dwarfs_base_cost_percent = "0"
+    fire("MctOptionSettingFinalized", {mod = function() return mct_mod end}); flush_callbacks()
+    assert_value(free.text, "0", "changing to free updates an already open panel")
+    options.chaos_dwarfs_enabled = false
+    free.text = "100"
+    fire("MctOptionSettingFinalized", {mod = function() return mct_mod end}); flush_callbacks()
+    fire("PanelOpenedCampaign", {string = "hellforge_panel_main"}); flush_callbacks()
+    assert_value(free.text, "100", "disabled overrides retain native display")
+    options.chaos_dwarfs_enabled = true
+    local_faction_key = "another_faction"
+    fire("MctOptionSettingFinalized", {mod = function() return mct_mod end}); flush_callbacks()
+    assert_value(free.text, "100", "other local factions retain native display")
+end
+
+function scenarios.base_cost_chaos_dwarfs()
+    boot()
+    local function change(percent, mode, enabled)
+        options.chaos_dwarfs_base_cost_percent = percent
+        options.chaos_dwarfs_mode, options.chaos_dwarfs_enabled = mode or "medium", enabled ~= false
+        fire("MctOptionSettingFinalized", {mod = function() return mct_mod end}); flush_callbacks()
+    end
+    local effect = ritual_keys[1] .. "_cost_mod"
+    for _, percent in ipairs({0, 100, 1000, 12.5}) do
+        change(tostring(percent))
+        local count = get_value(cap_key, ritual_keys[1])
+        assert_value(get_value(cost_key, effect), (100 + count * 10) * percent / 100 - 100, "CHD base scales existing cost")
+        purchase(ritual_keys[1])
+        assert_value(get_value(cost_key, effect), (100 + (count + 1) * 10) * percent / 100 - 100, "CHD purchases retain base multiplier")
+        assert_value(get_value(cap_key, ritual_keys[1]), count + 1, "free purchases retain capacity history")
+    end
+    change("0", "custom")
+    options.chaos_dwarfs_custom = "1000"
+    fire("MctOptionSettingFinalized", {mod = function() return mct_mod end}); flush_callbacks()
+    purchase(ritual_keys[1])
+    assert_value(get_value(cost_key, effect), -100, "growth cannot undo free cost")
+    hellforge.unit_ritual_cost_mod_increment = 37
+    change("0", "medium", false)
+    assert_value(get_value(cost_key, effect), get_value(cap_key, ritual_keys[1]) * 37, "disable restores current vanilla increment")
+    purchase(ritual_keys[1])
+    assert_value(get_value(cost_key, effect), get_value(cap_key, ritual_keys[1]) * 37, "disabled purchases use current vanilla")
+end
+
+function scenarios.base_cost_nagash()
+    local definition = core:load_global_script("capacity_cost_control.shared.generated_data").nagash
+    local record, uses = definition.rituals[28], 3
+    options.nagash_enabled, options.nagash_mode = true, "medium"
+    extra_factions[definition.faction_key] = {
+        name=function() return definition.faction_key end, is_human=function() return true end,
+        is_null_interface=function() return false end,
+        has_effect_bundle=function(_, key) return bundles[key] ~= nil end,
+        rituals=function() return {get_tracked_cost_uses=function() return uses end} end,
+    }
+    boot()
+    for _, percent in ipairs({0,100,1000,12.5}) do
+        options.nagash_base_cost_percent=tostring(percent)
+        fire("MctOptionSettingFinalized", {mod=function() return mct_mod end}); flush_callbacks()
+        local vanilla=math.floor(record.base_cost*(1+record.vanilla_rate*uses))
+        assert_value(math.floor(vanilla*(1+get_value(definition.bundle_key,record.effect_key)/100)),
+            math.floor(record.base_cost*(100+10*uses)*percent/10000), "Nagash scaled cost")
+        uses=uses+1
+    end
+    options.nagash_enabled=false
+    fire("MctOptionSettingFinalized", {mod=function() return mct_mod end}); flush_callbacks()
+    assert(bundles[definition.bundle_key]==nil,"disabled Nagash removes multiplier")
+end
+
+function scenarios.base_cost_amethyst()
+    local definition, _, stock, cost, buy, change = amethyst_setup(true, false)
+    for _, percent in ipairs({0,100,1000,12.5}) do
+        options.amethyst_base_cost_percent=tostring(percent)
+        change("no_scaling",true)
+        for i,record in ipairs(definition.rituals) do
+            assert_value(cost(i), math.floor(record.base_cost*percent/100), "Amethyst base multiplier")
+            buy(i)
+            assert_value(cost(i), math.floor(record.base_cost*percent/100), "Amethyst next purchase")
+        end
+    end
+    options.amethyst_base_cost_percent="0"
+    change("custom",true,"1000"); buy(1)
+    assert_value(cost(1),0,"free Amethyst ignores growth")
+    assert_value(stock[definition.rituals[1].key],17,"all purchases add stock")
+    change("no_scaling",false)
+    assert(cost(1)>0,"disable restores Amethyst cost")
+end
+
+function scenarios.base_cost_bhashiva()
+    local definition, _, capacity, cost, buy, change = bhashiva_setup(true,false,false,true,false)
+    for _, percent in ipairs({0,100,1000,12.5}) do
+        options.bhashiva_base_cost_percent=tostring(percent)
+        change("no_scaling",true)
+        for i,record in ipairs(definition.rituals) do
+            assert_value(cost(i),math.floor(record.base_cost*percent/100),"Shang-Yang scaled cost")
+            buy(i)
+            assert_value(cost(i),math.floor(record.base_cost*percent/100),"Shang-Yang next purchase")
+        end
+    end
+    options.bhashiva_base_cost_percent="0"
+    change("custom",true,"1000"); buy(1)
+    assert_value(cost(1),0,"free army capacity ignores growth")
+    assert_value(capacity[definition.rituals[1].key],17,"army purchases add capacity")
+    change("no_scaling",false)
+    assert(cost(1)>0,"disable restores Shang-Yang cost")
+end
+
+function scenarios.percent_settings()
+    local config=core:load_global_script("capacity_cost_control.config.settings")
+    assert_value(config.resolve_base_multiplier({enabled=true}),1,"missing setting uses 100%")
+    for _,bad in ipairs({-1,math.huge,-math.huge,0/0,"bad"}) do
+        assert(config.resolve_rate({enabled=true,mode="medium",base_cost_percent=bad})==nil,"invalid base percentage disables override")
+    end
+    assert_value(config.resolve_base_multiplier({base_cost_percent="0"}),0,"zero multiplier")
+    assert_value(config.resolve_base_multiplier({base_cost_percent="12.5"}),0.125,"fractional multiplier")
+    assert_value(config.default_settings().nagash.necromancy_progress_percent,100,"default progress")
 end
 
 assert(scenarios[arg[1]], "Unknown scenario")()

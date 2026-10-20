@@ -13,6 +13,7 @@ for _, prefix in ipairs(constants.faction_order) do
         enabled_option = prefix .. "_enabled",
         mode_option = prefix .. "_mode",
         custom_option = prefix .. "_custom",
+        base_cost_option = prefix .. "_base_cost_percent",
     }
 end
 config.preset_rates = constants.preset_rates
@@ -45,6 +46,9 @@ function config.read_faction_setting(faction_key)
         enabled = config.get_mct_option(opts.enabled_option, defaults.enabled),
         mode = config.get_mct_option(opts.mode_option, defaults.mode),
         custom_percent = config.get_mct_option(opts.custom_option, defaults.custom_percent),
+        base_cost_percent = config.get_mct_option(opts.base_cost_option, defaults.base_cost_percent),
+        necromancy_progress_percent = faction_key == "nagash"
+            and config.get_mct_option("nagash_necromancy_progress_percent", defaults.necromancy_progress_percent) or nil,
     }
 end
 
@@ -60,15 +64,30 @@ function config.default_settings()
             enabled = defaults.enabled,
             mode = defaults.mode,
             custom_percent = defaults.custom_percent,
+            base_cost_percent = defaults.base_cost_percent,
         }
+        if prefix == "nagash" then
+            settings[prefix].necromancy_progress_percent = defaults.necromancy_progress_percent
+        end
     end
     return settings
+end
+
+function config.resolve_percent(value, fallback)
+    if value == nil then value = fallback end
+    value = tonumber(value)
+    if value and value >= 0 and value - value == 0 then return value / 100 end
+end
+
+function config.resolve_base_multiplier(setting)
+    return config.resolve_percent(setting.base_cost_percent, defaults.base_cost_percent)
 end
 
 function config.resolve_rate(setting)
     if not setting.enabled then
         return nil
     end
+    if config.resolve_base_multiplier(setting) == nil then return nil end
     local preset = config.preset_rates[setting.mode]
     if preset ~= nil then
         return preset

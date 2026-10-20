@@ -1,9 +1,9 @@
 -- 由原生控件执行外链命令，Lua 只绑定目标与诊断监听。
 local links = {}
-local log = get_vlog("[capacity_cost_control.links]")
 local template_root = "ui/tww3_mod_capacity_cost_control/"
 
-local function bind(button, url, key)
+local function bind(button, url, key, runtime)
+    local common, cco, log = runtime.common, runtime.cco, runtime.log
     if not url or url == "" then return end
     local target = url
     if url:match("^https://github%.com/") then
@@ -17,21 +17,22 @@ local function bind(button, url, key)
     log("native link bound: " .. key .. " -> " .. target)
 end
 
-function links.configure_option(option, url, key)
+function links.configure_option(option, url, key, runtime)
     if not url or url == "" then return end
     option.get_uic_template = function() return template_root .. "action_link" end
     local create_option = option.ui_create_option
     option.ui_create_option = function(self, parent)
         local button = create_option(self, parent)
-        bind(button, url, "tww3_mod_capacity_cost_control_" .. key)
+        bind(button, url, "tww3_mod_capacity_cost_control_" .. key, runtime)
         return button
     end
     option:set_callback(function()
-        log("native action clicked: " .. key .. " -> " .. url .. "; browser opening is not confirmed")
+        runtime.log("native action clicked: " .. key .. " -> " .. url .. "; browser opening is not confirmed")
     end)
 end
 
-function links.apply(mct_mod, repository_tooltip)
+function links.apply(mct_mod, repository_tooltip, runtime)
+    local core, find_uicomponent, log = runtime.core, runtime.find_uicomponent, runtime.log
     local page = mct_mod:get_main_page()
     if page._tww3_external_links then return end
     page._tww3_external_links = true
@@ -49,7 +50,7 @@ function links.apply(mct_mod, repository_tooltip)
                 button:SetImagePath("ui/mct/icons/" .. key .. ".png")
                 button:SetTooltipText(key == "github" and repository_tooltip or mct_mod["get_" .. key .. "_link"](mct_mod), true)
                 button:Resize(32, 32)
-                bind(button, mct_mod["get_" .. key .. "_link"](mct_mod), id)
+                bind(button, mct_mod["get_" .. key .. "_link"](mct_mod), id, runtime)
                 core:remove_listener(id)
                 core:add_listener(id, "ComponentLClickUp",
                     function(context) return context.string == id end,

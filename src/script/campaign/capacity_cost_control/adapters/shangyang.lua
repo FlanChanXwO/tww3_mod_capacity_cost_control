@@ -77,7 +77,8 @@ function adapter:refresh(setting)
         cm:remove_effect_bundle(definition.bundle_key, self.faction_key)
     end
     local bundle = cm:create_new_custom_effect_bundle(definition.bundle_key)
-    pricing.apply(bundle, definition.rituals, counts, rate)
+    local base_multiplier = rate ~= nil and config.resolve_base_multiplier(setting or config.read_faction_setting(self.id)) or nil
+    pricing.apply(bundle, definition.rituals, counts, rate, base_multiplier)
     bundle:set_duration(0)
     cm:apply_custom_effect_bundle_to_faction(bundle, faction)
     sync_army_capacity(faction, counts)
