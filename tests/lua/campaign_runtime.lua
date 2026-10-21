@@ -15,7 +15,8 @@ local cost_key = "wh3_dlc23_bundle_chd_unit_cap_rituals_cost_mods"
 local cap_key = "wh3_dlc23_bundle_chd_unit_cap_rituals"
 local culture = "wh3_dlc23_chd_chaos_dwarfs"
 local faction_key = "wh3_dlc23_chd_astragoth"
-local ritual_keys = {prefix .. "chaos_dwarf_warriors", prefix .. "infernal_guard", prefix .. "warmachines"}
+local ritual_keys = {prefix .. "chaos_dwarf_warriors", prefix .. "infernal_guard", prefix .. "warmachines",
+    "wh3_dlc29_chd_ritual_unit_cap_chaos_siege_giant"}
 local options = {chaos_dwarfs_enabled = true, chaos_dwarfs_mode = "no_scaling", chaos_dwarfs_custom = "1"}
 local bundles, listeners, first_ticks, callbacks = {}, {}, {}, {}
 local loading_callbacks, named_values = {}, {}
@@ -131,7 +132,11 @@ local game_math = {}
 for key, value in pairs(math) do
     if key ~= "huge" then game_math[key] = value end
 end
-local env = setmetatable({cm = cm, core = core, math = game_math}, {__index = _G})
+local game_string = {}
+for key, value in pairs(string) do game_string[key] = value end
+-- WH3 的 find 是 UTF-8 字面查找，Lua 模式必须使用 match/find_lua。
+game_string.find = function(subject, needle, start) return string.find(subject, needle, start, true) end
+local env = setmetatable({cm = cm, core = core, math = game_math, string = game_string}, {__index = _G})
 env.UIComponent = function(component) return component end
 env.find_uicomponent = function(root, id)
     return root and root._panel and root._panel:Id() == id and root._panel or nil
@@ -777,6 +782,84 @@ local function bhashiva_setup(human, without_mct, initial_disabled, native_first
     return definition, history, capacity, cost, buy, change, function() return get_value(army_bundle, army_effect) end
 end
 
+function scenarios.bhashiva_free_cost_labels()
+    local definition=core:load_global_script("capacity_cost_control.shared.generated_data").bhashiva
+    local_faction_key=definition.faction_key
+    local function node(id,children,ritual_key)
+        local n={text="200",children=children or {}}
+        for _,child in ipairs(n.children) do child.parent=n end
+        function n:Id() return id end
+        function n:Visible() return true end
+        function n:ChildCount() return #self.children end
+        function n:Find(i) return self.children[i+1] end
+        function n:SetStateText(value) self.text=value end
+        function n:GetContextObject(kind)
+            if kind=="CcoCampaignRitual" and ritual_key then
+                return {Call=function(_,expression)
+                    assert_value(expression,"RitualContext.Key","native ritual context")
+                    return ritual_key
+                end}
+            end
+        end
+        return n
+    end
+    local labels,rows={},{}
+    for _,record in ipairs(definition.rituals) do
+        local label=node("dy_pooled_resource_cost")
+        labels[#labels+1]=label
+        rows[#rows+1]=node("ritual",{label},record.key)
+    end
+    local unrelated=node("dy_pooled_resource_cost")
+    rows[#rows+1]=node("upgrade",{unrelated},"other_ritual")
+    local panel=node("cp1_cth_shang_yang",rows)
+    ui_root={_panel=panel}
+    env.uicomponent_descended_from=function(n,id)
+        while n do if n:Id()==id then return true end;n=n.parent end
+        return false
+    end
+    options.bhashiva_base_cost_percent="0"
+    local _,_,capacity,cost,buy,change,army_capacity=bhashiva_setup(true,false,false,true)
+    local function reset() for _,label in ipairs(labels) do label.text="200" end end
+    local function check()
+        for _,label in ipairs(labels) do assert_value(label.text,"0","unit and army free costs display zero") end
+        assert_value(unrelated.text,"200","unrelated upgrade costs use native display")
+    end
+    check()
+    for opening=1,2 do
+        reset();fire("PanelOpenedCampaign",{string="cp1_cth_shang_yang"});flush_callbacks();check()
+    end
+    reset();fire("ComponentLClickUp",{component=rows[1]});flush_callbacks();check()
+    local old_army=army_capacity()
+    reset();buy(1);check()
+    assert_value(army_capacity(),old_army+1,"free army purchase still increases capacity")
+    local old_unit=capacity[definition.rituals[2].key]
+    reset();buy(2);check()
+    assert_value(capacity[definition.rituals[2].key],old_unit+1,"free unit purchase still increases capacity")
+    assert_value(cost(1),0,"army remains free")
+    assert_value(cost(2),0,"unit remains free")
+    for _,percent in ipairs({"100","1000"}) do
+        options.bhashiva_base_cost_percent=percent
+        reset();change("no_scaling",true)
+        assert_value(labels[1].text,"200","paid prices use native display")
+    end
+    options.bhashiva_base_cost_percent="0"
+    reset();change("no_scaling",false)
+    assert_value(labels[1].text,"200","disabled display is unchanged")
+    change("no_scaling",true);check()
+    local f=extra_factions[definition.faction_key]
+    f.is_human=function() return false end
+    reset();fire("PanelOpenedCampaign",{string="cp1_cth_shang_yang"});flush_callbacks()
+    assert_value(labels[1].text,"200","AI display is unchanged")
+    f.is_human=function() return true end
+    local_faction_key=faction_key
+    reset();fire("PanelOpenedCampaign",{string="cp1_cth_shang_yang"});flush_callbacks()
+    assert_value(labels[1].text,"200","other local faction is unchanged")
+    local_faction_key=definition.faction_key
+    env.get_mct=nil
+    reset();fire("PanelOpenedCampaign",{string="cp1_cth_shang_yang"});flush_callbacks()
+    assert_value(labels[1].text,"200","without MCT display is unchanged")
+end
+
 local function bhashiva_history(native_first)
     local definition, history, capacity, cost, buy, change, army_capacity = bhashiva_setup(true, false, false, native_first)
     for i, record in ipairs(definition.rituals) do
@@ -1055,38 +1138,57 @@ function scenarios.chaos_dwarfs_free_cost_labels()
         return result
     end
     -- 原版 hellforge_panel_unit_caps_tab.twui.xml 的价格默认 99；零支出没有 transaction 来改写文字。
-    local free, unrelated, progression = node("template_cost"), node("template_cost"), node("progression_cost")
+    local free, giant, unrelated, progression = node("template_cost"), node("template_cost"), node("template_cost"), node("progression_cost")
     local row = node("template_unit_entries", {free, progression}, ritual_keys[1])
-    local panel = node("hellforge_panel_main", {row, node("other", {unrelated}, "other_ritual")})
+    local giant_row = node("template_unit_entries", {giant}, ritual_keys[4])
+    local panel = node("hellforge_panel_main", {row, giant_row, node("other", {unrelated}, "other_ritual")})
     ui_root = {_panel = panel}
     options.chaos_dwarfs_base_cost_percent = "0"
     boot()
     fire("PanelOpenedCampaign", {string = "hellforge_panel_main"}); flush_callbacks()
     assert_value(free.text, "0", "free capacity displays zero instead of the native placeholder")
+    assert_value(giant.text, "0", "DLC29 Chaos Siege Giant also displays zero")
+    local adapter = core:load_global_script("capacity_cost_control.adapters.chaos_dwarfs")
+    assert(adapter:handles_ritual(ritual_keys[4]), "DLC29 capacity purchases use the Chaos Dwarf event path")
+    for _, key in ipairs({"wh3_dlc29_bst_ritual_unit_cap_giant_spined_chaos_beast",
+        "wh3_dlc29_chd_ritual_other", "other_wh3_dlc29_chd_ritual_unit_cap_giant"}) do
+        assert(not adapter:handles_ritual(key), "exclude unrelated rituals: " .. key)
+    end
     assert_value(unrelated.text, "99", "other rituals retain native text")
     assert_value(progression.text, "99", "manufactory progression is not a capacity price")
     for opening = 1, 2 do
         free.text = "99"
+        giant.text = "99"
         fire("PanelOpenedCampaign", {string = "hellforge_panel_main"}); flush_callbacks()
         assert_value(free.text, "0", "reopening resets the native zero-cost placeholder")
+        assert_value(giant.text, "0", "reopening resets the DLC29 placeholder")
     end
     purchase(ritual_keys[1]); free.text = "99"; flush_callbacks()
     assert_value(free.text, "0", "purchase refresh retains zero label")
     assert_value(get_value(cost_key, ritual_keys[1] .. "_cost_mod"), -100, "actual purchase remains free")
+    purchase(ritual_keys[4]); giant.text = "99"; flush_callbacks()
+    assert_value(giant.text, "0", "DLC29 purchase refresh retains zero label")
+    assert_value(get_value(cost_key, ritual_keys[4] .. "_cost_mod"), -100, "DLC29 actual purchase remains free")
+    assert_value(get_value(cap_key, ritual_keys[4]), 1, "DLC29 capacity history is preserved")
     for _, value in ipairs({"100", "1000"}) do
         options.chaos_dwarfs_base_cost_percent = value
         free.text = "250" -- 非零交易仍由原版 ContextTextLabel 更新。
+        giant.text = "750"
         fire("MctOptionSettingFinalized", {mod = function() return mct_mod end}); flush_callbacks()
         assert_value(free.text, "250", "paid prices remain under native control")
+        assert_value(giant.text, "750", "paid DLC29 prices remain under native control")
     end
     options.chaos_dwarfs_base_cost_percent = "0"
     fire("MctOptionSettingFinalized", {mod = function() return mct_mod end}); flush_callbacks()
     assert_value(free.text, "0", "changing to free updates an already open panel")
+    assert_value(giant.text, "0", "changing to free updates DLC29 price")
     options.chaos_dwarfs_enabled = false
     free.text = "100"
+    giant.text = "750"
     fire("MctOptionSettingFinalized", {mod = function() return mct_mod end}); flush_callbacks()
     fire("PanelOpenedCampaign", {string = "hellforge_panel_main"}); flush_callbacks()
     assert_value(free.text, "100", "disabled overrides retain native display")
+    assert_value(giant.text, "750", "disabled DLC29 retains native display")
     options.chaos_dwarfs_enabled = true
     local_faction_key = "another_faction"
     fire("MctOptionSettingFinalized", {mod = function() return mct_mod end}); flush_callbacks()

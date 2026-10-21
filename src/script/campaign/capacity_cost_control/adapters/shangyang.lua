@@ -64,7 +64,42 @@ function adapter:handles_ritual(key)
     return self.ritual_lookup[key] ~= nil
 end
 
+local function refresh_free_labels()
+    cm:callback(function()
+        if cm:get_local_faction_name() ~= definition.faction_key then return end
+        local mct = type(get_mct) == "function" and get_mct()
+        if not mct or not mct:get_mod_by_key(config.mod_key) then return end
+        local setting = config.read_faction_setting(adapter.id)
+        if config.resolve_rate(setting) == nil or config.resolve_base_multiplier(setting) ~= 0 then return end
+        local faction = cm:get_faction(definition.faction_key)
+        if not faction or faction:is_null_interface() or not faction:is_human() then return end
+        local panel = find_uicomponent(core:get_ui_root(), "cp1_cth_shang_yang")
+        if not panel or not panel:Visible() then return end
+        local function visit(component, ritual_key)
+            local ritual = component:GetContextObject("CcoCampaignRitual")
+            ritual_key = ritual and ritual:Call("RitualContext.Key") or ritual_key
+            -- 原版零支出无 transaction，兵种与军队容量价格都可能残留模板的 200。
+            if component:Id() == "dy_pooled_resource_cost" and adapter:handles_ritual(ritual_key) then
+                component:SetStateText("0")
+            end
+            for i = 0, component:ChildCount() - 1 do
+                visit(UIComponent(component:Find(i)), ritual_key)
+            end
+        end
+        visit(panel)
+    end, 0.1)
+end
+
+core:add_listener("tww3_mod_capacity_cost_control_shangyang_prices", "PanelOpenedCampaign",
+    function(context) return context.string == "cp1_cth_shang_yang" end, refresh_free_labels, true)
+core:add_listener("tww3_mod_capacity_cost_control_shangyang_price_tabs", "ComponentLClickUp",
+    function(context)
+        return cm:get_local_faction_name() == definition.faction_key
+            and uicomponent_descended_from(UIComponent(context.component), "cp1_cth_shang_yang")
+    end, refresh_free_labels, true)
+
 function adapter:refresh(setting)
+    refresh_free_labels()
     local faction = cm:get_faction(self.faction_key)
     if not faction or faction:is_null_interface() then return end
     local counts = history(faction)

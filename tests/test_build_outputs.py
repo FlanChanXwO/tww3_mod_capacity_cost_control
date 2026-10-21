@@ -119,8 +119,12 @@ class BuildOutputTests(unittest.TestCase):
             with junctions_path.open(encoding="utf-8", newline="") as stream:
                 junctions = list(csv.reader(stream, delimiter="\t"))
 
-        self.assertEqual(len(effects), 83)
-        self.assertEqual(len(junctions), 83)
+        self.assertEqual(len(effects), 84)
+        self.assertEqual(len(junctions), 84)
+        self.assertIn(
+            ["percentage_cost_post_mod", "wh3_ccc_bst_hero_gorehoof", "mixu_increase_hero_capacity_bst_gorehoof"],
+            junctions,
+        )
         self.assertTrue(all(row[0] == "percentage_cost_post_mod" for row in junctions[2:]))
 
     def test_generated_bundles_define_every_custom_bundle_key(self) -> None:

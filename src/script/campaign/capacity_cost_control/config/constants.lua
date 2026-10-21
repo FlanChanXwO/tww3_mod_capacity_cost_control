@@ -30,7 +30,8 @@ return {
     },
 
     chaos_dwarfs = {
-        ritual_prefix = "wh3_dlc23_chd_ritual_unit_cap_",
+        -- 原版容量仪式跨 DLC：攻城巨人使用 dlc29，不能只识别 dlc23。
+        ritual_pattern = "^wh3_dlc%d+_chd_ritual_unit_cap_",
         warmachine_effect = "wh3_dlc23_chd_ritual_unit_cap_warmachines_cost_mod",
         -- 原版增量和 bundle 继续读取 hellforge 的当前字段，避免复制后与原版脱节。
     },

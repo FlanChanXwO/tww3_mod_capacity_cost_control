@@ -110,6 +110,9 @@ class CampaignRuntimeTests(unittest.TestCase):
     def test_bhashiva_new_campaign_army_capacity(self) -> None:
         self.run_scenario("bhashiva_new_campaign")
 
+    def test_bhashiva_free_cost_labels(self) -> None:
+        self.run_scenario("bhashiva_free_cost_labels")
+
     def test_bhashiva_without_mct_preserves_vanilla(self) -> None:
         self.run_scenario("bhashiva_without_mct")
 
@@ -143,6 +146,12 @@ class CampaignRuntimeTests(unittest.TestCase):
 
     def test_beastmen_existing_history_and_reload(self) -> None:
         self.run_beastmen_scenario("existing_campaign")
+
+    def test_beastmen_mixu_gorehoof_cost_and_history(self) -> None:
+        self.run_beastmen_scenario("mixu_gorehoof")
+
+    def test_beastmen_free_cost_labels(self) -> None:
+        self.run_beastmen_scenario("free_cost_labels")
 
     def test_beastmen_ungor_purchase_timing(self) -> None:
         self.run_beastmen_scenario("ungor_purchase_timing")

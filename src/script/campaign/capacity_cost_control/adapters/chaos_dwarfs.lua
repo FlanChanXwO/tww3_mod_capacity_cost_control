@@ -46,7 +46,7 @@ local function refresh_free_labels()
 end
 
 function chaos_dwarfs:handles_ritual(ritual_key)
-    return string.find(ritual_key, native.ritual_prefix, 1) == 1
+    return string.match(ritual_key, native.ritual_pattern) ~= nil
 end
 
 function chaos_dwarfs:install_hook()

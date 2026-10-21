@@ -8,6 +8,7 @@ local scaling = core:load_global_script("capacity_cost_control.utils.cost_math")
 local config = core:load_global_script("capacity_cost_control.config.settings")
 local purchases = core:load_global_script("capacity_cost_control.store.purchases")
 local beastmen = {id = "beastmen"}
+local current_setting = nil
 local rituals = {}
 for _, ritual in ipairs(definition.rituals) do rituals[ritual.key] = ritual end
 
@@ -55,11 +56,46 @@ function beastmen:handles_ritual(ritual_key)
     return rituals[ritual_key] ~= nil
 end
 
+local function refresh_free_labels()
+    cm:callback(function()
+        if not current_setting or config.resolve_rate(current_setting) == nil
+            or config.resolve_base_multiplier(current_setting) ~= 0 then return end
+        local faction = cm:get_faction(cm:get_local_faction_name())
+        if not faction or faction:is_null_interface() or not faction:is_human()
+            or faction:culture() ~= definition.culture_key then return end
+        local panel = find_uicomponent(core:get_ui_root(), "beastmen_panel")
+        if not panel or not panel:Visible() then return end
+        local function visit(component, ritual_key)
+            local ritual = component:GetContextObject("CcoCampaignRitual")
+            ritual_key = ritual and ritual:Call("RitualContext.Key") or ritual_key
+            -- 零支出没有金额可供原版表达式读取，价格会残留模板的 99。
+            if component:Id() == "dy_dread" and beastmen:handles_ritual(ritual_key) then
+                component:SetStateText("0")
+            end
+            for i = 0, component:ChildCount() - 1 do
+                visit(UIComponent(component:Find(i)), ritual_key)
+            end
+        end
+        visit(panel)
+    end, 0.1)
+end
+
+core:add_listener("tww3_mod_capacity_cost_control_beastmen_prices", "PanelOpenedCampaign",
+    function(context) return context.string == "beastmen_panel" end, refresh_free_labels, true)
+core:add_listener("tww3_mod_capacity_cost_control_beastmen_price_tabs", "ComponentLClickUp",
+    function(context)
+        return current_setting and config.resolve_rate(current_setting) ~= nil
+            and config.resolve_base_multiplier(current_setting) == 0
+            and uicomponent_descended_from(UIComponent(context.component), "beastmen_panel")
+    end, refresh_free_labels, true)
+
 function beastmen:on_ritual_completed(ritual_key, faction)
     purchases.record_purchase(save_key(faction), ritual_key)
 end
 
 function beastmen:refresh(setting)
+    current_setting = setting
+    refresh_free_labels()
     local rate = config.resolve_rate(setting)
     for _, faction_key in ipairs(cm:get_human_factions_of_culture(definition.culture_key)) do
         local faction = cm:get_faction(faction_key)
@@ -74,7 +110,10 @@ function beastmen:refresh(setting)
                 for _, ritual in ipairs(definition.rituals) do
                     local native_effect = ritual.key .. constants.cost_effect_suffix
                     -- 同一原版效果用相反值抵消，避免巨大复利费用乘接近零的比例丢失精度。
-                    bundle:add_effect(native_effect, constants.effect_scope, -(modifiers[native_effect] or 0))
+                    -- Mixu 血蹄没有原版涨价效果，只添加实际存在的抵消项。
+                    if modifiers[native_effect] ~= nil then
+                        bundle:add_effect(native_effect, constants.effect_scope, -modifiers[native_effect])
+                    end
                     local base_multiplier = config.resolve_base_multiplier(setting)
                     local desired = 0
                     if base_multiplier ~= 0 then

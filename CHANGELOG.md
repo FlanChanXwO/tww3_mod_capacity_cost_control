@@ -4,11 +4,30 @@
 
 This changelog follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+[1.1.1]: https://github.com/FlanChanXwO/tww3_mod_capacity_cost_control/compare/v1.1.0...v1.1.1
 [1.1.0]: https://github.com/FlanChanXwO/tww3_mod_capacity_cost_control/compare/v1.0.3...v1.1.0
 [1.0.3]: https://github.com/FlanChanXwO/tww3_mod_capacity_cost_control/compare/v1.0.2...v1.0.3
 [1.0.2]: https://github.com/FlanChanXwO/tww3_mod_capacity_cost_control/compare/v1.0.1...v1.0.2
 [1.0.1]: https://github.com/FlanChanXwO/tww3_mod_capacity_cost_control/compare/v1.0.0...v1.0.1
 [1.0.0]: https://github.com/FlanChanXwO/tww3_mod_capacity_cost_control/releases/tag/v1.0.0
+
+## [1.1.1] - 2026-10-21
+
+### 简体中文
+
+#### 修复
+
+- 修复混沌矮人熔炉中混沌攻城巨人等容量项目在免费购买时仍显示 99 的问题。
+- 修复野兽人和上阳诸军的容量页面在免费购买时残留显示 99 或 200 的问题，打开页面、切换页签和购买后显示 0。
+- 补齐 Mixu Legendary Lords 血蹄英雄的容量费用适配，支持野兽人的基础费用倍率与购买递增设置，0% 时可免费购买。Mixu 仍为可选模组；接入前的血蹄购买次数无法恢复，后续购买独立记录。
+
+### English
+
+#### Fixed
+
+- Fix Chaos Dwarf capacity entries, including the Chaos Siege Giant, still displaying 99 when purchases are free.
+- Fix Beastmen and Shang Yang capacity pages showing placeholder costs of 99 or 200 for free purchases. Prices display 0 after opening the page, switching tabs, or purchasing.
+- Add capacity cost support for the Gorehoof hero from Mixu's Legendary Lords, including Beastmen base cost and purchase growth settings. A 0% base cost allows free purchases. Mixu remains optional; earlier Gorehoof purchases cannot be recovered, and subsequent purchases are tracked separately.
 
 ## [1.1.0] - 2026-10-20
 
