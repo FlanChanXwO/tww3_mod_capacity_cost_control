@@ -73,7 +73,7 @@ Python 构建通过 `script/build/rpfm_mcp.py` 连接 RPFM。
 - Campaign 用 `core:load_global_script`，MCT settings 调用前检查 `get_mct()`。已核对的 MCT `GLib.LoadModules` 经 `GLib.LoadModule` 将设置入口绑定到 `core:get_env()`；入口自行 `loadfile` 加载的辅助模块不会自动继承该环境，UI 回调使用设置入口显式传入的运行接口。
 - 纳迦什亡灵术进度通过原版监听器的本次支出代理调整，`tests/lua/fixtures/nagash_vanilla.lua` 保存核对过的原版累计回调。更新游戏后需核对监听器记录结构、购买次数在 `RitualAboutToStartEvent` 时的含义与原版回调使用的接口。
 - MCT 外链由 `links.lua` 绑定到原生控件的 `CcoScriptObject`，通过 `ContextCommandLeftClick` 执行导航。GitHub 直达受引擎外站检查影响，导航时转换为 Steam 官方 `linkfilter/?u=` 确认页，目标 URL 完整百分号编码；工坊保持直达，元数据保留原始 GitHub 地址。首页图标和设置按钮共用此规则。用户需在 Steam 页面确认继续；用户已在游戏中确认跳转可用。
-- WH3 禁用 `string.find` 第四参数，且未提供 `math.huge`。
+- WH3 的 `string.find` 是游戏提供的 UTF-8 字面查找，不支持 Lua 模式或第四参数；模式匹配使用 `string.match` 或 `string.find_lua`。战役回归模拟该字面查找语义，避免标准 Lua 下通过、游戏中漏匹配。游戏也未提供 `math.huge`。
 - 零延迟回调同步执行；读取原版更新后的值使用正延迟，并测试两种监听顺序。
 - 费用验证整数取整与 float32 精度；购买历史和军队容量分别维护。
 

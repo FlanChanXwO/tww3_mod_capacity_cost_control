@@ -14,6 +14,8 @@ local function bundle(key, values)
     local effects = {}
     local result = {key = function() return key end, set_duration = function() end}
     function result:add_effect(key, scope, value)
+        assert(key ~= "mixu_increase_hero_capacity_bst_gorehoof_cost_mod",
+            "Mixu has no native cost effect to add or cancel")
         local effect = {_value = value, key = function() return key end}
         function effect:value() return self._value end
         effects[#effects + 1] = effect
@@ -71,7 +73,7 @@ local cm = {
         local values = {}
         for _, ritual in ipairs(definition.rituals) do
             local is_hero = string.find(ritual.key, "ritual_hero_capacity_", 1)
-            if key == (is_hero and hero_bundle or unit_bundle) then
+            if ritual.vanilla_rate > 0 and key == (is_hero and hero_bundle or unit_bundle) then
                 values[ritual.key .. "_cost_mod"] = 0
             end
         end
@@ -92,6 +94,8 @@ function mct_mod:get_option_by_key(key)
 end
 local core = {}
 local env = setmetatable({cm = cm, core = core}, {__index = _G})
+function core:get_ui_root() return nil end
+env.find_uicomponent=function() return nil end
 env.get_mct = function() return {get_mod_by_key = function() return mct_mod end} end
 function core:get_env() return env end
 function core:load_global_script(name)
@@ -180,7 +184,9 @@ local function purchase(f, ritual, success)
         -- 此场景以阵营已有原版费用模板为初始状态。
         local key = native_bundle_key(ritual)
         if not f._bundles[key] then f._bundles[key] = cm:create_new_custom_effect_bundle(key) end
-        env.Ruination:modify_ritual_cap_cost(ritual.key, f, native_bundle_key(ritual), increment)
+        if ritual.vanilla_rate > 0 then
+            env.Ruination:modify_ritual_cap_cost(ritual.key, f, native_bundle_key(ritual), increment)
+        end
         f._capacity[ritual.key] = (f._capacity[ritual.key] or 0) + 1
     end
     if not event_first then fire("RitualCompletedEvent", context) end
@@ -188,6 +194,42 @@ local function purchase(f, ritual, success)
 end
 
 local scenarios = {}
+function scenarios.mixu_gorehoof()
+    local ritual = assert(by_key.mixu_increase_hero_capacity_bst_gorehoof,
+        "Mixu Gorehoof capacity ritual must be covered")
+    equal(ritual.base_cost, 500, "Mixu reuses the Wargor expenditure of 500")
+    equal(ritual.vanilla_rate, 0, "Mixu has no native escalating effect")
+    boot()
+    for _, percent in ipairs({0, 100, 1000, 12.5}) do
+        options.beastmen_base_cost_percent = tostring(percent)
+        change("no_scaling")
+        equal(cost(player, ritual), math.floor(500 * percent / 100), "Gorehoof initial cost")
+        purchase(player, ritual)
+        equal(cost(player, ritual), math.floor(500 * percent / 100), "Gorehoof next cost")
+    end
+    equal(player._capacity[ritual.key], 4, "Gorehoof purchases add capacity")
+    options.beastmen_base_cost_percent = "100"
+    change("medium")
+    equal(cost(player, ritual), 700, "Gorehoof uses its own four recorded purchases")
+    purchase(player, ritual)
+    equal(cost(player, ritual), 750, "Gorehoof custom growth follows purchase count")
+    boot()
+    equal(cost(player, ritual), 750, "Gorehoof history survives reload")
+    options.beastmen_base_cost_percent = "0"
+    change("custom", true, "1000")
+    purchase(player, ritual)
+    equal(cost(player, ritual), 0, "Gorehoof stays free under high growth")
+    purchase(player, ritual, false)
+    equal(player._capacity[ritual.key], 6, "failed purchase does not add capacity")
+    change("medium", false)
+    equal(cost(player, ritual), 500, "disabled restores Mixu fixed cost")
+    purchase(ai, ritual)
+    equal(cost(ai, ritual), 500, "Gorehoof AI cost is unchanged")
+    env.get_mct = nil
+    player._bundles[definition.bundle_key] = nil
+    boot()
+    equal(cost(player, ritual), 500, "without MCT Mixu is unchanged")
+end
 function scenarios.ungor_purchase_timing()
     local ungor = assert(by_key.wh2_dlc17_bst_ritual_unit_cap_ungor_herd_spearmen_herd)
     boot()
@@ -292,6 +334,70 @@ function scenarios.initial_disabled()
     equal(cost(player, unit), 848, "disabled purchases must follow native scaling")
     change("light")
     equal(cost(player, unit), 600, "first enable must include imported and disabled purchases")
+end
+
+function scenarios.free_cost_labels()
+    local function node(id, children, ritual_key)
+        local n={text="99",children=children or {}}
+        for _,child in ipairs(n.children) do child.parent=n end
+        function n:Id() return id end
+        function n:Visible() return true end
+        function n:ChildCount() return #self.children end
+        function n:Find(i) return self.children[i+1] end
+        function n:SetStateText(value) self.text=value end
+        function n:GetContextObject(kind)
+            if kind=="CcoCampaignRitual" and ritual_key then
+                return {Call=function(_,expression)
+                    equal(expression,"RitualContext.Key","native ritual key")
+                    return ritual_key
+                end}
+            end
+        end
+        return n
+    end
+    local labels,rows={},{}
+    for _,ritual in ipairs(definition.rituals) do
+        local price=node("dy_dread")
+        labels[#labels+1]=price
+        rows[#rows+1]=node("template",{price},ritual.key)
+    end
+    local item=node("dy_dread")
+    rows[#rows+1]=node("item",{item},"wh2_dlc17_bst_ritual_item_other")
+    local panel=node("beastmen_panel",rows)
+    function core:get_ui_root() return panel end
+    env.UIComponent=function(n) return n end
+    env.find_uicomponent=function(root,id) return root and root:Id()==id and root end
+    env.uicomponent_descended_from=function(n,id)
+        while n do if n:Id()==id then return true end;n=n.parent end
+        return false
+    end
+    local function reset() for _,price in ipairs(labels) do price.text="99" end end
+    local function check()
+        for _,price in ipairs(labels) do equal(price.text,"0","free unit and hero prices display zero") end
+        equal(item.text,"99","item price is unaffected")
+    end
+    options.beastmen_base_cost_percent="0"
+    boot();check()
+    for opening=1,2 do
+        reset();fire("PanelOpenedCampaign",{string="beastmen_panel"});flush();check()
+    end
+    reset();fire("ComponentLClickUp",{component=rows[1]});flush();check()
+    reset();purchase(player,unit);flush();check()
+    equal(cost(player,unit),0,"UI fix preserves free purchase")
+    for _,percent in ipairs({"100","1000"}) do
+        options.beastmen_base_cost_percent=percent
+        reset();change("no_scaling");equal(labels[1].text,"99","paid prices use native display")
+    end
+    options.beastmen_base_cost_percent="0"
+    reset();change("no_scaling",false);equal(labels[1].text,"99","disabled display is unchanged")
+    change("no_scaling");check()
+    player._human=false
+    reset();fire("PanelOpenedCampaign",{string="beastmen_panel"});flush()
+    equal(labels[1].text,"99","AI is unchanged")
+    player._human=true
+    env.get_mct=nil
+    reset();boot();fire("PanelOpenedCampaign",{string="beastmen_panel"});flush()
+    equal(labels[1].text,"99","without MCT display is unchanged")
 end
 
 function scenarios.base_cost_percent()

@@ -80,6 +80,7 @@
     "cost_model": "beastmen",
     "bundle_key": "wh3_ccc_bundle_beastmen_capacity_cost",
     "rituals": [
+      ["mixu_increase_hero_capacity_bst_gorehoof", "wh3_ccc_bst_hero_gorehoof", 0, 0, 500],
       ["wh2_dlc17_bst_ritual_hero_capacity_bray_shaman", "wh3_ccc_bst_hero_bray_shaman", 0.1, 2147483647, 500],
       ["wh2_dlc17_bst_ritual_hero_capacity_gorebull", "wh3_ccc_bst_hero_gorebull", 0.1, 2147483647, 500],
       ["wh2_dlc17_bst_ritual_hero_capacity_wargor", "wh3_ccc_bst_hero_wargor", 0.1, 2147483647, 500],
